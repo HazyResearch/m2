@@ -1,0 +1,9 @@
+einops==0.5.0
+torch==1.13.1
+mosaicml[nlp,wandb]>=0.14.0,<0.15
+mosaicml-streaming==0.4.1
+omegaconf==2.2.3
+transformers==4.28.1
+# need a newer version of triton
+triton==2.0.0.dev20221103
+opt_einsum

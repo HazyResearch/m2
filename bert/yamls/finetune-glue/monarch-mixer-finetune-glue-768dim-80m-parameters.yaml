@@ -1,0 +1,139 @@
+# Note that some of the fields in this template haven't been filled in yet.
+# Please resolve any `null` fields before launching!
+
+# Whether to run the various GLUE jobs serially or in parallel (use parallel=True to take advantage of multiple GPUs)
+parallel: true
+
+# Basic run configuration, additional details will be added to this name for each GLUE task, and each random seed
+base_run_name: monarch-mixer-finetune-glue-786dim-80m-parameters
+default_seed: 19
+precision: fp32 
+max_seq_len: 128
+
+# Tokenizer for dataset creation
+tokenizer_name: bert-base-uncased
+
+# Base model config
+model:
+  name: bert
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
+  model_config:
+    num_attention_heads: 12 
+    num_hidden_layers: 12 
+    attention_probs_dropout_prob: 0.0 
+    max_position_embeddings: 128
+
+    monarch_mixer_sequence_mixing: True
+    long_conv_l_max: 128
+    long_conv_kernel_learning_rate: 1e-3
+    hyena_lr_pos_emb: 1e-5
+    hyena_w: 10
+    hyena_wd: 0.1
+    hyena_emb_dim: 5
+    hyena_filter_order: 128
+    hyena_training_additions: True
+
+    bidirectional: true
+    residual_long_conv: true
+
+    use_glu_mlp: True
+    use_monarch_mlp: True
+    monarch_mlp_nblocks: 4
+    use_positional_encodings: True
+
+
+# Loading
+starting_checkpoint_load_path:      # Fill this in with the checkpoint from the end of pretraining
+local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
+
+# When starting from mnli
+# local_pretrain_checkpoint_folder: ./local-finetune-checkpoints/{base_run_name}/task=mnli/seed=19/
+# starting_checkpoint_load_path: ${local_pretrain_checkpoint_folder}/ep3-ba24546-rank0.pt
+
+# Saving
+save_finetune_checkpoint_prefix: ./local-finetune-checkpoints/ # (local)
+# save_finetune_checkpoint_prefix: s3://<bucket>/remote-finetune-checkpoints # (remote)
+save_finetune_checkpoint_folder: ${save_finetune_checkpoint_prefix}/${base_run_name}
+
+# (Optional) W&B logging
+# loggers:
+#   wandb:
+#     project:     # Fill this in
+#     entity:      # Fill this in
+
+# Callbacks
+callbacks:
+  lr_monitor: {}
+  speed_monitor: {}
+
+# Scheduler
+scheduler:
+  name: linear_decay_with_warmup
+  t_warmup: 0.06dur
+  alpha_f: 0.0
+
+# Task configuration
+tasks:
+  mnli:
+    # Specify any extra task-specific arguments for the trainer here
+    trainer_kwargs:
+      # We keep one MNLI checkpoint locally so that we can start finetuning of
+      # RTE, MRPC and STS-B from the MNLI checkpoint
+      save_num_checkpoints_to_keep: 1
+      max_sequence_length: 128
+      wd: 5e-6
+      lr: 5e-5
+  rte:
+    seeds: [19, 8364, 717, 10536, 90166]
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      optim_name: adamw
+      max_duration: 6ep
+      wd: 0.01
+      lr: 5e-5
+  qqp:
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      optim_name: adamw
+      wd: 0.01
+      lr: 3e-5
+      max_duration: 10ep
+  qnli:
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      wd: 1e-6
+      lr: 1e-5
+  sst2:
+    seeds: [19, 8364, 717]
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      wd: 3e-6
+      lr: 3e-5
+  stsb:
+    seeds: [19, 8364, 717, 10536, 90166]
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      optim_name: adamw
+      wd: 0.01
+      lr: 7e-5
+  mrpc:
+    seeds: [19, 8364, 717, 10536, 90166]
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      optim_name: adamw
+      wd: 0.01
+      lr: 5e-5
+  cola:
+    seeds: [19, 8364, 717, 10536]
+    trainer_kwargs:
+      save_num_checkpoints_to_keep: 0
+      max_sequence_length: 128
+      wd: 5e-6
+      lr: 5e-5
