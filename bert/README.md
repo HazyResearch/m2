@@ -69,7 +69,7 @@ We evaluated the quality of our models on the standard GLUE benchmark. The data 
 ### Obtaining Pretrained Checkpoints
 
 July 24: We will release a suite of BERT models in the coming weeks. Today we are releasing the following checkpoints:
-1. [M2-BERT-768dim](https://huggingface.co/danfu09/m2-bert-80M), which matches the average GLUE score of BERT-base with 25\% fewer parameters.
+1. [M2-BERT-768dim](https://huggingface.co/danfu09/m2-bert-80M), which matches the average GLUE score of BERT-base with 25\% fewer parameters. *Please Note* this model was pretrained and finetuned with the legacy model configuration setting ```hyena_training_additions: True```, whereas the default option and 960 dim model are with ```hyena_training_additions: False```. Our finetuning script is set to reproduce our reported results in the blog.
 2. [M2-BERT-960dim](https://huggingface.co/danfu09/m2-bert-110M), which is parameter matched to BERT-base.
 
 ### Fine-tuning from Pretrained Checkpoints
