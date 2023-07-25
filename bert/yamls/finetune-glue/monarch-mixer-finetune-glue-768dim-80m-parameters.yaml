@@ -106,7 +106,8 @@ tasks:
       save_num_checkpoints_to_keep: 0
       max_sequence_length: 128
       wd: 1e-6
-      lr: 1e-5
+      lr: 5e-5
+      pool_all: True # average pooling
   sst2:
     seeds: [19, 8364, 717]
     trainer_kwargs:
