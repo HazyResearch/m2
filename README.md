@@ -1,6 +1,6 @@
 # Monarch Mixer
 
-![M2 logo](assets/m2-bert-logo.png)
+<!-- ![M2 logo](assets/m2-bert-logo.png) -->
 
 **Monarch Mixer: A Simple Sub-Quadratic GEMM-Based Architecture**\
 Daniel Y. Fu, Simran Arora*, Sabri Eyuboglu*, Jessica Grogan*, Isys Johnson*, Armin W. Thomas*, Benjamin F. Spector, Michael Poli, Atri Rudra, and Christopher Ré.\
