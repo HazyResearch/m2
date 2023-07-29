@@ -187,8 +187,11 @@ def create_job_configs(main_config: om.DictConfig, tasks_to_run: Set[str],
         copy_main_config = copy.deepcopy(main_config)
         if 'pool_all' in task_config['trainer_kwargs'].keys():
             copy_main_config.model['model_config']['pool_all'] = task_config['trainer_kwargs']['pool_all']
+            # delete from trainer_config
+            del task_config['trainer_kwargs']['pool_all']
         else:
             copy_main_config = main_config
+        main_config = copy.deepcopy(copy_main_config)
 
         if main_config.get('base_run_name') is None:
             main_config.base_run_name = os.environ.get('COMPOSER_RUN_NAME',
