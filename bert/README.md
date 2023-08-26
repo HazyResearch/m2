@@ -16,7 +16,7 @@ For Docker, we recommend starting from the PyTorch Docker containers to be able 
 
 To install the CUDA kernels:
 ```
-git clone https://github.com/m2.git
+git clone https://github.com/HazyResearch/m2.git
 cd csrc/flashmm
 python setup.py install
 ```
@@ -29,9 +29,9 @@ conda activate m2_bert
 
 To install the dependencies for training:
 ```bash
-git clone https://github.com/m2.git # if you haven't already
+git clone https://github.com/HazyResearch/m2.git # if you haven't already
 cd bert/
-pip install -r requirements.txt 
+pip install -r requirements.txt
 ```
 
 ### Getting the Data
