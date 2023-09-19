@@ -4,7 +4,7 @@
 
 **Monarch Mixer: A Simple Sub-Quadratic GEMM-Based Architecture**\
 Daniel Y. Fu, Simran Arora*, Sabri Eyuboglu*, Jessica Grogan*, Isys Johnson*, Armin W. Thomas*, Benjamin F. Spector, Michael Poli, Atri Rudra, and Christopher Ré.\
-[M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert) | [M2-BERT checkpoints]() | arXiv coming soon!
+[M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert) | M2-BERT checkpoints: [80M](https://huggingface.co/danfu09/m2-bert-80M) [110M](https://huggingface.co/danfu09/m2-bert-110M) | arXiv coming soon!
 
 Transformers have taken the world by a storm! The architecture is composed of two core operations: Attention for mixing information across the input sequence and MLPs for mixing information across the model dimension. Each operator scales quadratically -- the complexity of Attention is quadratic in sequence length and the complexity of an MLP is quadratic in model dimension. Ideally, we can have alternatives that scale more efficiently, while preserving Transformer-level quality. Towards this goal, we've been developing Monarch Mixer (M2), a framework for training models that are sub-quadratic in **both** sequence length and model dimension. 
 
