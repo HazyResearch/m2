@@ -5,7 +5,11 @@
 **Monarch Mixer: A Simple Sub-Quadratic GEMM-Based Architecture**\
 Daniel Y. Fu, Simran Arora*, Jessica Grogan*, Isys Johnson*, Sabri Eyuboglu*, Armin W. Thomas*, Benjamin F. Spector, Michael Poli, Atri Rudra, and Christopher Ré.\
 [arXiv](https://arxiv.org/abs/2310.12109) | [M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert)\
-M2-BERT checkpoints: [M2-BERT-base (80M)](https://huggingface.co/danfu09/m2-bert-80M) [M2-BERT-base (110M)](https://huggingface.co/danfu09/m2-bert-110M) [M2-BERT-large (260M)](https://huggingface.co/danfu09/m2-bert-260m) [M2-BERT-large (341M)](https://huggingface.co/danfu09/m2-bert-341m)
+M2-BERT checkpoints:
+* [M2-BERT-base (80M)](https://huggingface.co/danfu09/m2-bert-80M)
+* [M2-BERT-base (110M)](https://huggingface.co/danfu09/m2-bert-110M)
+* [M2-BERT-large (260M)](https://huggingface.co/danfu09/m2-bert-260m)
+* [M2-BERT-large (341M)](https://huggingface.co/danfu09/m2-bert-341m)
 
 **Updates**:
 * October 21: M2-BERT-large checkpoints are now up on HuggingFace ([260M](https://huggingface.co/danfu09/m2-bert-260m), [341M](https://huggingface.co/danfu09/m2-bert-341m)). The 260M model matches BERT-large in GLUE fine-tuning with 24% fewer parameters, and the 341M model outperforms BERT-large.
