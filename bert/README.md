@@ -102,7 +102,7 @@ A few notes for finetuning:
 3. Following the protocol introduced in [Izsak et al., 2021](https://arxiv.org/abs/2104.07705), we finetune for the data-poor GLUE tasks (RTE, STSB, and MRPC), starting from a checkpoint obtained after fine-tuning on the MNLI task. Once you've obtained an MNLI checkpoint, you can update the checkpoint paths in the ```yaml``` files to load this in and add the suffix ```-from-mnli``` to your experiment name to run finetuning on RTE, STSB, and MRPC.
 
 Expected performance:
-| Model | Average GLUE Performance |
+| Model | Average GLUE Score |
 | :---- | :----------------------: |
 | M2-BERT-base (80M)  | 79.9 |
 | M2-BERT-base (110M) | 80.9 |

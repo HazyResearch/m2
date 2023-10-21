@@ -4,7 +4,8 @@
 
 **Monarch Mixer: A Simple Sub-Quadratic GEMM-Based Architecture**\
 Daniel Y. Fu, Simran Arora*, Jessica Grogan*, Isys Johnson*, Sabri Eyuboglu*, Armin W. Thomas*, Benjamin F. Spector, Michael Poli, Atri Rudra, and Christopher Ré.\
-[arXiv](https://arxiv.org/abs/2310.12109) | [M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert)\
+[arXiv](https://arxiv.org/abs/2310.12109) | [M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert)
+
 M2-BERT checkpoints:
 * [M2-BERT-base (80M)](https://huggingface.co/danfu09/m2-bert-80M)
 * [M2-BERT-base (110M)](https://huggingface.co/danfu09/m2-bert-110M)
