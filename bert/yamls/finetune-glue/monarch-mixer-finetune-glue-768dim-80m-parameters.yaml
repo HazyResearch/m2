@@ -7,7 +7,7 @@ parallel: true
 # Basic run configuration, additional details will be added to this name for each GLUE task, and each random seed
 base_run_name: monarch-mixer-finetune-glue-786dim-80m-parameters
 default_seed: 19
-precision: fp32 
+precision: amp_bf16 
 max_seq_len: 128
 
 # Tokenizer for dataset creation

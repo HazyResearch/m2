@@ -69,18 +69,28 @@ We evaluated the quality of our models on the standard GLUE benchmark. The data 
 ### Obtaining Pretrained Checkpoints
 
 July 24: We will release a suite of BERT models in the coming weeks. Today we are releasing the following checkpoints:
-1. [M2-BERT-768dim](https://huggingface.co/danfu09/m2-bert-80M), which matches the average GLUE score of BERT-base with 25\% fewer parameters. *Please Note* this model was pretrained and finetuned with the legacy model configuration setting ```hyena_training_additions: True```, whereas the default option and 960 dim model are with ```hyena_training_additions: False```. Our finetuning script is set to reproduce our reported results in the blog.
-2. [M2-BERT-960dim](https://huggingface.co/danfu09/m2-bert-110M), which is parameter matched to BERT-base.
+1. [M2-BERT-base (80M)](https://huggingface.co/danfu09/m2-bert-80m), which matches the average GLUE score of BERT-base with 27\% fewer parameters. Its hidden dimension is 768. *Please Note* this model was pretrained and finetuned with the legacy model configuration setting ```hyena_training_additions: True```, whereas the default option and 960 dim model are with ```hyena_training_additions: False```. Our finetuning script is set to reproduce our reported results in the blog.
+2. [M2-BERT-base (110M)](https://huggingface.co/danfu09/m2-bert-110m), which is parameter matched to BERT-base with hidden dimension 960.
+
+October 21: Now we have released two additional checkpoints, equivalent to BERT-large:
+1. [M2-BERT-large (260M)](https://huggingface.co/danfu09/m2-bert-260m) has 24\% fewer parameters than BERT-large and matches in GLUE average quality. Its hidden dimension is 1536 and has 12 layers.
+2. [M2-BERT-large (341M)](https://huggingface.co/danfu09/m2-bert-341m) has hidden dimension 1792 and outperforms BERT-large in GLUE.
 
 ### Fine-tuning from Pretrained Checkpoints
 
 We include ```yaml``` files to fine-tune each of the M2-BERT checkpoints as well as the BERT-base Transformer baseline. The commands are as follows:
 ```
-# To fine-tune from M2-BERT-768dim
+# To fine-tune from M2-BERT-base (80M)
 python glue.py yamls/finetune-glue/monarch-mixer-finetune-glue-768dim-80m-parameters.yaml
 
-# To fine-tune from M2-BERT-960dim
+# To fine-tune from M2-BERT-base (110M)
 python glue.py yamls/finetune-glue/monarch-mixer-finetune-glue-960dim-parameter-matched.yaml
+
+# To fine-tune from M2-BERT-large (260M)
+python glue.py yamls/finetune-glue/monarch-mixer-large-finetune-glue-1536dim-260m-parameters.yaml
+
+# To fine-tune from M2-BERT-large (341M)
+python glue.py yamls/finetune-glue/monarch-mixer-large-finetune-glue-1792dim-341m-parameters.yaml
 
 # To fine-tune BERT-base
 python glue.py yamls/finetune-glue/hf-transformer-finetune-glue-bert-base-uncased.yaml
@@ -97,11 +107,17 @@ A few notes for finetuning:
 We include ```yaml``` files to pretrain M2-BERT as well as the BERT-base Transformer baseline. The commands are as follows:
 
 ```bash
-# Pretrain M2-BERT-768dim
+# Pretrain M2-BERT-base (80M)
 composer main.py yamls/pretrain/monarch-mixer-pretrain-786dim-80m-parameters.yaml
 
-# Pretrain M2-BERT-960dim
+# Pretrain M2-BERT-base (110M)
 composer main.py yamls/pretrain/monarch-mixer-pretrain-960dim-parameter-matched.yaml
+
+# Pretrain M2-BERT-base (260M)
+composer monarch-mixer-large-pretrain-1536dim-260m-parameters.yaml
+
+# Pretrain M2-BERT-base (341M)
+composer monarch-mixer-large-pretrain-1791dim-341m-parameters.yaml
 
 # Pretrain BERT-base-uncased Transformer baseline
 composer main.py yamls/pretrain/hf-transformer-pretrain-bert-base-uncased.yaml

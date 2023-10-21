@@ -384,6 +384,12 @@ def _est_progress_denominator(total_samples: int, chars_per_sample: int,
     elif mode == ConcatMode.CONCAT_TOKENS:
         return total_samples * est_tokens_per_sample // max_length
 
+def custom_collate(inp):
+    keys = list(inp[0].keys())
+    return {
+        k: [d[k] for d in inp]
+        for k in keys 
+    }
 
 def build_dataloader(dataset, batch_size) -> DataLoader:
     # Multiple workers is only supported on linux machines
@@ -405,6 +411,7 @@ def build_dataloader(dataset, batch_size) -> DataLoader:
         batch_size=batch_size,
         num_workers=num_workers,
         prefetch_factor=prefetch_factor,
+        collate_fn=custom_collate,
     )
 
 

@@ -5,7 +5,7 @@
 parallel: false
 
 # Basic run configuration, additional details will be added to this name for each GLUE task, and each random seed
-base_run_name: monarch-mixer-finetune-glue-960dim-parameter-matched
+base_run_name: monarch-mixer-finetune-glue-1536dim-260m-parameters
 default_seed: 19
 precision: amp_bf16
 max_seq_len: 128
@@ -23,8 +23,8 @@ model:
     num_hidden_layers: 12 
     attention_probs_dropout_prob: 0.0 
     max_position_embeddings: 128
-    hidden_size: 960
-    intermediate_size: 3840
+    hidden_size: 1536
+    intermediate_size: 6144
 
     monarch_mixer_sequence_mixing: True
     long_conv_l_max: 128
@@ -116,20 +116,20 @@ tasks:
     trainer_kwargs:
       save_num_checkpoints_to_keep: 0
       max_sequence_length: 128
-      lr: 8.0e-5
+      lr: 7.0e-5
       wd: 3.0e-6
+      max_duration: 10ep
   mrpc:
     seeds: [19, 8364, 717, 10536, 90166]
     trainer_kwargs:
       save_num_checkpoints_to_keep: 0
       max_sequence_length: 128
       lr: 8.0e-5
-      wd: 8.0e-5
+      wd: 8.0e-6
   cola:
     seeds: [19, 8364, 717, 10536]
     trainer_kwargs:
       save_num_checkpoints_to_keep: 0
       max_sequence_length: 128
-      lr: 8.0e-5
+      lr: 5.0e-5
       wd: 5.0e-6
-      optim_name: AdamW
