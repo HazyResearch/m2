@@ -27,3 +27,38 @@ Our basic idea is to replace the major elements of a Transformer with Monarch ma
 **October 21:** M2-BERT-large checkpoints are now up on HuggingFace, and the paper is on arXiv!
 
 **July 24:** We are excited to release Monarch Mixer BERT (M2-BERT), which has 25% fewer parameters/FLOPs than BERT, and matches in average quality on the GLUE benchmark. The [BERT folder](bert/) includes code for pretraining and finetuning BERT baselines and M2-BERT. We also release pretrained checkpoints at 128 sequence length for an 80M parameter BERT, which matches the average GLUE benchmark score of the BERT-base-uncased 110M parameter model, and a parameter matched M2-BERT model. 
+
+## Citation
+
+If you use this codebase, or otherwise found our work valuable, you can cite us as follows:
+```
+@inproceedings{fu2023monarch,
+  title={Monarch Mixer: A Simple Sub-Quadratic GEMM-Based Architecture},
+  author={Fu, Daniel Y and Arora, Simran and Grogan, Jessica and Johnson, Isys and Eyuboglu, Sabri and Thomas, Armin W and Spector, Benjamin and Poli, Michael and Rudra, Atri and R{\'e}, Christopher},
+  booktitle={Advances in Neural Information Processing Systems},
+  year={2023}
+}
+```
+
+You can also cite our previous work that this repository builds on:
+```
+@article{poli2023hyena,
+  title={Hyena Hierarchy: Towards Larger Convolutional Language Models},
+  author={Poli, Michael and Massaroli, Stefano and Nguyen, Eric and Fu, Daniel Y and Dao, Tri and Baccus, Stephen and Bengio, Yoshua and Ermon, Stefano and R{\'e}, Christopher},
+  journal={arXiv preprint arXiv:2302.10866},
+  year={2023}
+}
+@article{fu2023simple,
+  title={Simple Hardware-Efficient Long Convolutions for Sequence Modeling},
+  author={Fu, Daniel Y. and Epstein, Elliot L. and Nguyen, Eric and Thomas, Armin W. and Zhang, Michael and Dao, Tri and Rudra, Atri and R{\'e}, Christopher},
+  journal={International Conference on Machine Learning},
+  year={2023}
+}
+@inproceedings{fu2023hungry,
+  title={Hungry {H}ungry {H}ippos: Towards Language Modeling with State Space Models},
+  author={Fu, Daniel Y. and Dao, Tri and Saab, Khaled K. and Thomas, Armin W.
+  and Rudra, Atri and R{\'e}, Christopher},
+  booktitle={International Conference on Learning Representations},
+  year={2023}
+}
+```
