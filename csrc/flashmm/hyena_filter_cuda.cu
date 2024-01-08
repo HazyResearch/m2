@@ -230,8 +230,8 @@ __global__ void exp_mod_in_place_fwd_kernel(
 ) {
     unsigned int L = gridDim.y;
     unsigned int H = blockDim.x;
-    unsigned int C_id = blockIdx.x;
-    unsigned int L_id = blockIdx.y;
+    unsigned int C_id = blockIdx.y;
+    unsigned int L_id = blockIdx.x;
     unsigned int H_id = threadIdx.x;
     bool reverse = inputDataReverse[C_id] == 1;
     float L_frac = reverse ? (-1. + float(L_id) / float(L - 1)) : (-1. * float(L_id) / float(L - 1));
@@ -269,7 +269,7 @@ template <typename input_t>
 void exp_mod_in_place_fwd_cuda(
     input_t *k, const int *reverse, int C, int L, int H, float min_decay, float max_decay, float shift
 ) {
-    dim3 grid(C, L);
+    dim3 grid(L, C);
     dim3 block(H);
     auto kernel = &exp_mod_in_place_fwd_kernel<input_t>;
     kernel<<<grid, block>>>(k, reverse, min_decay, max_decay, shift);

@@ -4,6 +4,7 @@
 import os
 import sys
 from typing import Optional, cast
+import time
 
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -14,7 +15,7 @@ from omegaconf import DictConfig
 from omegaconf import OmegaConf as om
 
 import torch
-from src.benchmark.benchmark import benchmark_forward
+from src.benchmark.benchmark import benchmark_forward, pytorch_profiler
 
 def build_model(cfg: DictConfig):
     if cfg.name == 'hf_bert':
@@ -46,9 +47,17 @@ def main(cfg: DictConfig,
     print('Using config: ')
     print(om.to_yaml(cfg))
 
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device_amp = 'cuda' if torch.cuda.is_available() else 'cpu'
+    dtype = torch.float16 if device == torch.device('cuda') else torch.float32
+
     # Build Model
     print('Initializing model...')
-    model = build_model(cfg.model).cuda()
+    model = build_model(cfg.model).to(device)
+    if device == torch.device('cuda'):
+        model.half()
+    n_params = sum(p.numel() for p in model.parameters())
+    print(f'{n_params=:.4e}')
     B = cfg.device_train_microbatch_size
     # B = 32
     L = cfg.max_seq_len
@@ -59,11 +68,12 @@ def main(cfg: DictConfig,
     else:
         H = cfg.model.model_config.hidden_size
 
-    u = torch.randn(B, L, H).cuda()
+    u = torch.randn(B, L, H, dtype=dtype).to(device)
+    # u = torch.randn(B, L, H).cuda()
     if cfg.model.name == 'bert':
-        attention_mask = torch.ones(B, L, dtype=torch.int64).cuda()
+        attention_mask = torch.ones(B, L, dtype=torch.int64).to(device)
     else:
-        attention_mask = torch.ones(L, L, dtype=torch.int64).cuda()
+        attention_mask = torch.ones(L, L, dtype=torch.int64).to(device)
 
     # model.model.bert.encoder(u, attention_mask)
     # breakpoint()
@@ -72,12 +82,23 @@ def main(cfg: DictConfig,
 
     # Run forward pass
     print('Running forward pass...')
-    with torch.autocast(device_type='cuda', dtype=torch.bfloat16, enabled=True):
-        _, ret = benchmark_forward(run_bert, model, u, attention_mask, repeats=repeats, verbose=True, amp_dtype=torch.bfloat16, amp=True)
+    if device_amp == 'cuda':
+        with torch.autocast(device_type=device_amp, dtype=dtype, enabled=True):
+            _, ret = benchmark_forward(run_bert, model, u, attention_mask, repeats=repeats, verbose=True, amp_dtype=dtype, amp=True)
 
-        time = ret._mean
-        print('Time: ', time)
-        print('Tokens/ms: ', B*L/time/1000)
+            ret_time = ret._mean
+            print('Time: ', ret_time)
+            print('Tokens/ms: ', B*L/ret_time/1000)
+            
+            # pytorch_profiler(run_bert, model, u, attention_mask, backward=False, cpu=True, trace_filename='bert_fwd.json')
+    else:
+        t0 = time.time()
+        for i in range(repeats):
+            run_bert(model, u, attention_mask)
+        t1 = time.time()
+        ret_time = t1 - t0
+        print('Time: ', ret_time / repeats)
+        print('Tokens/ms: ', B*L/ret_time/1000)
 
 if __name__ == '__main__':
     yaml_path, args_list = sys.argv[1], sys.argv[2:]

@@ -35,6 +35,11 @@ except ImportError as e:
 from src.mm.blockdiag_linear import BlockdiagLinear
 from src.mm.monarch_mixer_sequence_mixer import MonarchMixerSequenceMixing
 
+try:
+    from flash_fft.conv import FlashFFTConv
+except ImportError as e:
+    FlashFFTConv = None
+
 logger = logging.getLogger(__name__)
 
 torch.backends.cuda.matmul.allow_tf32 = True
@@ -401,6 +406,9 @@ class BertLayer(nn.Module):
             if config.use_flash_mm:
                 from src.mm.flash_mm import FlashMMSequenceMixing
                 mm_cls = FlashMMSequenceMixing
+            elif config.use_flash_fft:
+                from src.mm.mm_flashfft import MMFlashFFTSequenceMixing
+                mm_cls = MMFlashFFTSequenceMixing
             else:
                 mm_cls = MonarchMixerSequenceMixing
             self.attention = mm_cls(
@@ -417,7 +425,7 @@ class BertLayer(nn.Module):
                 hyena_filter_dropout=config.hyena_filter_dropout,
                 hyena_filter_order=config.hyena_filter_order,
                 residual_long_conv=config.residual_long_conv,
-                hyena_training_additions=config.hyena_training_additions,
+                hyena_training_additions=config.hyena_training_additions
             )
 
         else:
@@ -472,9 +480,17 @@ class BertEncoder(nn.Module):
 
     def __init__(self, config):
         super().__init__()
+
         layer = BertLayer(config)
         self.layer = nn.ModuleList(
             [copy.deepcopy(layer) for _ in range(config.num_hidden_layers)])
+        
+        if config.use_flash_fft:
+            assert FlashFFTConv is not None, 'FlashFFTConv is not installed'
+            self.flashfft = FlashFFTConv(seqlen = config.max_position_embeddings, dtype=torch.float16)
+
+            for layer in self.layer:
+                layer.attention.flashfft = self.flashfft
 
         self.monarch_mixer_sequence_mixing = config.monarch_mixer_sequence_mixing
         self.num_attention_heads = config.num_attention_heads
