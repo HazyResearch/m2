@@ -15,7 +15,7 @@ Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
 [Blog post]().
 
 **Updates**:
-* **January 9, 2024:** New long-context M2-BERT models available, as well as retrieval versions for embeddings!
+* **January 9, 2024:** New long-context M2-BERT models available (2k, 8k, and 32), as well as retrieval versions for embeddings. Also releasing a preview of LoCo, a new benchmark for long-context retrieval!
 * **October 21, 2023:** M2-BERT-large checkpoints are now up on HuggingFace ([260M](https://huggingface.co/danfu09/m2-bert-260m), [341M](https://huggingface.co/danfu09/m2-bert-341m)). The 260M model matches BERT-large in GLUE fine-tuning with 24% fewer parameters, and the 341M model outperforms BERT-large.
 * **October 18, 2023:** M2 paper is now up on arXiv, and will be presented at NeurIPS as an oral! 
 

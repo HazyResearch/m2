@@ -1,5 +1,7 @@
 # M2-BERT
 
+**Update January 9, 2024:** We are excited to release new long-context M2-BERT models, with versions fine-tuned for embeddings! Se the [blog post]() for more details, and check out [EMBEDDINGS.md](EMBEDDINGS.md) for more details!
+
 We're excited to release a preview of our first M2 models -- Monarch-Mixer-BERT.
 Code in this folder is forked from Tri Dao's MLPerf implementation of BERT and MosaicML's BERT examples for support clear comparison to recently released efficient Transformer baselines.
 
