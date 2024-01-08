@@ -15,6 +15,7 @@ Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
 [Blog post]().
 
 **Updates**:
+* **January 9, 2024:** M2-BERT retrieval models are now available on Together API! Check out instructions [below]() for running them!
 * **January 9, 2024:** New long-context M2-BERT models available (2k, 8k, and 32), as well as retrieval versions for embeddings. Also releasing a preview of LoCo, a new benchmark for long-context retrieval!
 * **October 21, 2023:** M2-BERT-large checkpoints are now up on HuggingFace ([260M](https://huggingface.co/danfu09/m2-bert-260m), [341M](https://huggingface.co/danfu09/m2-bert-341m)). The 260M model matches BERT-large in GLUE fine-tuning with 24% fewer parameters, and the 341M model outperforms BERT-large.
 * **October 18, 2023:** M2 paper is now up on arXiv, and will be presented at NeurIPS as an oral! 
@@ -38,6 +39,17 @@ Transformers have taken the world by a storm! The architecture is composed of tw
 ![M2 diagram](assets/m2-diagram.png)
 
 Our basic idea is to replace the major elements of a Transformer with Monarch matrices — which are a class of structured matrices that generalize the FFT and are sub-quadratic, hardware-efficient, and expressive. In Monarch Mixer, we use layers built up from Monarch matrices to do both mixing across the sequence (replacing the Attention operation) and mixing across the model dimension (replacing the dense MLP). This repo includes code and models for training Monarch Mixer architectures!
+
+### Getting Started with Embeddings
+
+M2-BERT embedding models are now available on the Together API.
+You can run them by signing up for an account and querying the API as follows:
+
+```python
+bla bla
+```
+
+Check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more on how to benchmark these models and run them locally!
 
 ### Current Contents
 
