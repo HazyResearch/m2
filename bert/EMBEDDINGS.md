@@ -3,6 +3,18 @@
 We're excited to release some new long-context M2-BERT models (2k, 8k, 32k) as well as embedding versions fine-tuned for long-context retrieval!
 As part of this release, we're also releasing a preview of LoCo, a new benchmark for long-context retrieval.
 
+Check out the [blog post](https://togethercomputer.com/blog/loco) for more details:
+
+**Long-Context Retrieval Models with Monarch Mixer**\
+Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
+[Blog post]().
+
+Paper coming soon - we're releasing the code and models first to get **your feedback** on how well these early checkpoints perform, and how else we should evaluate long-context retrieval.
+**Here are some particular calls to action for feedback if you’re interested in long-context retrieval:**
+* If you have long-context retrieval tasks, we would love to hear how the M2-BERT retrieval models perform in the wild!
+* If you have public long-context retrieval tasks or datasets that you think would be good additions to LoCo, please let us know. We’ve only included a few retrieval tasks that have long documents, but we want to grow the benchmark to be more representative!
+
+**Table of Contents**
 * [Setup](#setup)
 * [Obtaining Pretrained Checkpoints](#obtaining-pretrained-checkpoints)
 * [Generating Embeddings](#generating-embeddings)
@@ -107,3 +119,7 @@ python loco_eval.py --model-name togethercomputer/m2-bert-80M-8k-retrieval --tog
 
 python loco_eval.py --model-name togethercomputer/m2-bert-80M-32k-retrieval --together-api
 ```
+
+## Training
+
+You can use [embeddings_train.py](embeddings_train.py) to train your own M2-BERT embedding models.
