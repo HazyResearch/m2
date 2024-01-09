@@ -27,12 +27,12 @@ Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
 * [M2-BERT-large (341M)](https://huggingface.co/danfu09/m2-bert-341m)
 
 **Long-Context and Retrieval M2-BERT Checkpoints:**
-* [M2-BERT-base-80M-2K]()
-* [M2-BERT-base-80M-8K]()
-* [M2-BERT-base-80M-32K]()
-* [M2-BERT-base-80M-2K-retrieval]()
-* [M2-BERT-base-80M-8K-retrieval]()
-* [M2-BERT-base-80M-32K-retrieval]()
+* [M2-BERT-base-80M-2K](https://huggingface.co/togethercomputer/m2-bert-80M-2k-retrieval)
+* [M2-BERT-base-80M-8K](https://huggingface.co/togethercomputer/m2-bert-80M-8k-retrieval)
+* [M2-BERT-base-80M-32K](https://huggingface.co/togethercomputer/m2-bert-80M-32k-retrieval)
+* [M2-BERT-base-80M-2K-retrieval](https://huggingface.co/togethercomputer/m2-bert-80M-2k-retrieval)
+* [M2-BERT-base-80M-8K-retrieval](https://huggingface.co/togethercomputer/m2-bert-80M-8k-retrieval)
+* [M2-BERT-base-80M-32K-retrieval](https://huggingface.co/togethercomputer/m2-bert-80M-32k-retrieval)
 
 Transformers have taken the world by a storm! The architecture is composed of two core operations: Attention for mixing information across the input sequence and MLPs for mixing information across the model dimension. Each operator scales quadratically -- the complexity of Attention is quadratic in sequence length and the complexity of an MLP is quadratic in model dimension. Ideally, we can have alternatives that scale more efficiently, while preserving Transformer-level quality. Towards this goal, we've been developing Monarch Mixer (M2), a framework for training models that are sub-quadratic in **both** sequence length and model dimension. 
 
@@ -43,13 +43,36 @@ Our basic idea is to replace the major elements of a Transformer with Monarch ma
 ### Getting Started with Embeddings
 
 M2-BERT embedding models are now available on the Together API.
-You can run them by signing up for an account and querying the API as follows:
+You can run them by signing up for an account and querying the API as follows (you can find your API key [here](https://api.together.xyz/settings/api-keys)):
 
-```python
-bla bla
+```Python
+import os
+import requests
+
+def generate_together_embeddings(text: str, model_api_string: str, api_key: str):
+    url = "https://api.together.xyz/api/v1/embeddings"
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": f"Bearer {api_key}"
+    }
+    session = requests.Session()
+    response = session.post(
+        url,
+        headers=headers,
+        json={
+            "input": text,
+            "model": model_api_string
+        }
+    )
+    if response.status_code != 200:
+        raise ValueError(f"Request failed with status code {response.status_code}: {response.text}")
+    return response.json()['data'][0]['embedding']
+
+print(generate_together_embeddings('Hello world', 'togethercomputer/m2-bert-80M-32k-retrieval', os.environ['TOGETHER_API_KEY'])[:10])
 ```
 
-Check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more on how to benchmark these models and run them locally!
+Check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more on how to evaluate these models and run them locally!
 
 ### Current Contents
 

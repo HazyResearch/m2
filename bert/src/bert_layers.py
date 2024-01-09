@@ -12,6 +12,10 @@ import sys
 import warnings
 from typing import List, Optional, Tuple, Union
 from functools import partial
+try:
+    from flashfftconv import FlashFFTConv
+except:
+    print("Could not import FlashFFTConv!")
 
 # Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
@@ -475,6 +479,17 @@ class BertEncoder(nn.Module):
         layer = BertLayer(config)
         self.layer = nn.ModuleList(
             [copy.deepcopy(layer) for _ in range(config.num_hidden_layers)])
+        
+        if config.use_flash_fft:
+            assert FlashFFTConv is not None, 'FlashFFTConv is not installed'
+            self.flashfft = FlashFFTConv(seqlen = 2 * config.max_position_embeddings, dtype=torch.bfloat16)
+            self.use_flash_fft = config.use_flash_fft
+
+            for layer in self.layer:
+                layer.attention.filter_fn.flashfft = self.flashfft
+                layer.attention.filter_fn2.flashfft = self.flashfft
+                layer.attention.filter_fn.use_flash_fft = config.use_flash_fft
+                layer.attention.filter_fn2.use_flash_fft = config.use_flash_fft
 
         self.monarch_mixer_sequence_mixing = config.monarch_mixer_sequence_mixing
         self.num_attention_heads = config.num_attention_heads

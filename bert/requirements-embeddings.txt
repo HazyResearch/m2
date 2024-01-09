@@ -1,0 +1,7 @@
+beir
+apache_beam
+openai
+cohere
+voyageai
+tiktoken
+multiprocess==0.70.14

@@ -13,31 +13,33 @@ contract = oe.contract
 
 from src.utils.train import OptimModule
 
-
-def fftconv_ref(u, k, D, dropout_mask, gelu=True, k_rev=None):
+def fftconv_ref(u_variable, k, D_variable, dropout_mask, gelu=True, k_rev=None, flashfft=None):
     # u.shape:   B H L
-    seqlen = u.shape[-1]
-    
-    fft_size = 2 * seqlen
-    k_f = torch.fft.rfft(k, n=fft_size) / fft_size
-    if k_rev is not None:
-        k_rev_f = torch.fft.rfft(k_rev, n=fft_size) / fft_size
-        k_f = k_f + k_rev_f.conj()
-    u_f = torch.fft.rfft(u.to(dtype=k.dtype), n=fft_size)
+    seqlen = u_variable.shape[-1]
 
-    if len(u.shape) > 3:
-        k_f = k_f.unsqueeze(1)
+    if flashfft is not None:
+        y = flashfft(u_variable.to(dtype=torch.bfloat16).contiguous(), k)
+    else:
+        fft_size = 2 * seqlen
+        k_f = torch.fft.rfft(k, n=fft_size) / fft_size
+        if k_rev is not None:
+            k_rev_f = torch.fft.rfft(k_rev, n=fft_size) / fft_size
+            k_f = k_f + k_rev_f.conj()
+        u_f = torch.fft.rfft(u_variable.to(dtype=k.dtype), n=fft_size)
 
-    y = torch.fft.irfft(u_f * k_f, n=fft_size, norm="forward")[..., :seqlen]
+        if len(u_variable.shape) > 3:
+            k_f = k_f.unsqueeze(1)
 
-    out = y + u * D
+        y = torch.fft.irfft(u_f * k_f, n=fft_size, norm="forward")[..., :seqlen]
+
+    out = y + u_variable * D_variable
 
     if gelu:
         out = F.gelu(out)
     if dropout_mask is not None:
-        return (out * rearrange(dropout_mask, "b H -> b H 1")).to(dtype=u.dtype)
+        return (out * rearrange(dropout_mask, "b H -> b H 1")).to(dtype=u_variable.dtype)
     else:
-        return out.to(dtype=u.dtype)
+        return out.to(dtype=u_variable.dtype)
 
 
 @torch.jit.script
@@ -193,6 +195,8 @@ class HyenaFilter(OptimModule):
             for name, v in c.state_dict().items():
                 optim = {"weight_decay": wd, "lr": lr}
                 setattr(getattr(c, name), "_optim", optim)
+        
+        self.flashfft = None
 
     def filter(self, L, *args, **kwargs):
         z, t = self.pos_emb(L)
@@ -238,6 +242,7 @@ class HyenaFilter(OptimModule):
             bias, 
             dropout_mask=None,
             gelu=False,
+            flashfft=self.flashfft,
         )
 
         return y.to(dtype=x.dtype)

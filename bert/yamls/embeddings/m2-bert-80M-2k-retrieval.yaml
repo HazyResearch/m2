@@ -1,0 +1,136 @@
+
+base_run_name: monarch-mixer-finetune-retrieval-2k
+default_seed: 19
+precision: bf16 
+max_seq_len: 2048 
+evaluation_max_seq_len: 2048
+
+use_flash_fft: True
+
+##########################################################
+
+starting_checkpoint_load_path: 
+
+local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
+
+# Saving
+save_finetune_checkpoint_folder: ./local-finetune-checkpoints/${base_run_name}
+
+#################################################
+
+# Base model config
+model:
+  name: bert
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
+  evaluation_max_seq_len: ${evaluation_max_seq_len}
+
+  use_learnable_monarch: False
+  model_config:
+    pretrained_checkpoint: ${starting_checkpoint_load_path}
+    use_learnable_monarch: False
+    use_flash_fft: ${use_flash_fft}
+    precision: ${precision}
+
+    num_labels: 10
+    num_attention_heads: 12 
+    num_hidden_layers: 12 
+    attention_probs_dropout_prob: 0.0
+    max_position_embeddings: ${max_seq_len}
+
+    pool_all: False
+
+    hidden_size: 768
+    intermediate_size: 3072
+
+    monarch_mixer_sequence_mixing: True
+    long_conv_l_max: ${max_seq_len}
+    long_conv_kernel_learning_rate: 1e-3
+    hyena_lr_pos_emb: 1e-5
+    hyena_w: 10
+    hyena_wd: 0.1
+    hyena_emb_dim: 5
+    hyena_filter_order: 128
+    hyena_training_additions: False
+
+    bidirectional: true
+    residual_long_conv: true
+
+    use_glu_mlp: True
+    use_monarch_mlp: True
+    monarch_mlp_nblocks: 4
+    use_positional_encodings: True
+
+
+##################################################
+
+# Tokenizer for dataset creation
+tokenizer_name: bert-base-uncased
+
+# Optimization
+scheduler_name: linear_decay_with_warmup
+t_warmup: 0.06dur
+alpha_f: 0.02
+scheduler:
+  name: ${scheduler_name}
+  t_warmup: ${t_warmup} #0.06dur #1ep # Warmup to the full LR for 6% of the training duration
+  alpha_f: ${alpha_f} # Linearly decay to 0.02x the full LR by the end of the training duration
+
+learning_rate: 5.0e-6 #2.0e-5
+optimizer:
+  name: decoupled_adamw
+  lr: ${learning_rate}
+  betas:
+  - 0.9
+  - 0.98
+  eps: 1.0e-06
+  weight_decay: 1.0e-6
+
+# Training duration and evaluation frequency
+max_duration: 30ep #30ep
+eval_interval: 1ep
+global_train_batch_size: 16 #16 #16
+
+# Callbacks
+callbacks:
+  lr_monitor: {}
+  speed_monitor: {}
+
+# System
+seed: 17
+device_eval_batch_size: 16
+device_train_microbatch_size: 1 #4 #16
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 50ba
+
+# Dataloaders (make sure to update these after you modify the starter script!)
+train_loader:
+  split: train
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
+  shuffle: true
+  drop_last: true
+  num_workers: 8
+
+split_for_testing: test #test, validation
+eval_loader:
+  split: ${split_for_testing}
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
+  shuffle: true
+  drop_last: true
+  num_workers: 8
+
+num_labels: 10
+problem_type: multi_label_classification 
+
+# (Optional) W&B logging
+# loggers:
+#   wandb: 
+#     project:
+#     entity:
+#     name:

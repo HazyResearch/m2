@@ -30,6 +30,7 @@ class BertConfig(BertConfig):
         
         # efficiency
         use_flash_mm: bool = False,
+        use_flash_fft: bool = False,
 
         # average pooling instead of CLS token
         pool_all: bool = False,
@@ -71,6 +72,7 @@ class BertConfig(BertConfig):
 
         # efficiency
         self.use_flash_mm = use_flash_mm
+        self.use_flash_fft = use_flash_fft
 
         # average pooling instead of CLS token
         self.pool_all = pool_all

@@ -21,7 +21,13 @@ To install the CUDA kernels:
 git clone https://github.com/HazyResearch/m2.git
 cd csrc/flashmm
 python setup.py install
+cd ../..
+
+pip install git+https://github.com/HazyResearch/flash-fft-conv.git#subdirectory=csrc/flashfftconv
+pip install git+https://github.com/HazyResearch/flash-fft-conv.git
 ```
+
+FlashFFTConv isn't necessary, but will make things slightly faster with the `use_flashfft` flag in the model config.
 
 For the pure PyTorch stack, Conda works as well:
 ```
