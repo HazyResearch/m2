@@ -1,7 +1,7 @@
 # Long-Context Retrieval with M2-BERT
 
 <p align="center">
-  <img width="40%" src="assets/monarch_in_library.png">
+  <img width="40%" src="../assets/monarch_in_library.png">
 </p>
 
 We're excited to release some new long-context M2-BERT models (2k, 8k, 32k) as well as embedding versions fine-tuned for long-context retrieval!
