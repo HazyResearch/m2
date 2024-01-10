@@ -110,7 +110,7 @@ checkpoint = args.checkpoint
 if use_M2_BERT and not use_Together_API and checkpoint is None:
     checkpoint = hf_hub_download(
         repo_id = args.model_name,
-        filename = "model.bin"
+        filename = "pytorch_model.bin"
     )
 
 batch_size_for_encoding = args.batch_size
