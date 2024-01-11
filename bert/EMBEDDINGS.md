@@ -10,7 +10,7 @@ As part of this release, we're also releasing a preview of LoCo, a new benchmark
 Check out the [blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) for more details:
 
 **Long-Context Retrieval Models with Monarch Mixer**\
-Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
+Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 11 2024.\
 [Blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval).
 
 Paper coming soon - we're releasing the code and models first to get **your feedback** on how well these early checkpoints perform, and how else we should evaluate long-context retrieval.

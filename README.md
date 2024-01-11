@@ -13,8 +13,8 @@ Daniel Y. Fu, Simran Arora*, Jessica Grogan*, Isys Johnson*, Sabri Eyuboglu*, Ar
 [arXiv](https://arxiv.org/abs/2310.12109) | [M2-BERT blog post](https://hazyresearch.stanford.edu/blog/2023-07-25-m2-bert)
 
 **Long-Context Retrieval Models with Monarch Mixer**\
-Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
-[Blog post]().
+Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 11 2024.\
+[Blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval).
 
 **Updates**:
 * **January 11, 2024:** M2-BERT retrieval models are now available on Together API! Check out instructions [below](#getting-started-with-embeddings) for running them!
