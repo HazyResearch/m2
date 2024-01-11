@@ -98,7 +98,10 @@ def generate_together_embeddings(text: str, model_api_string: str, api_key: str)
         raise ValueError(f"Request failed with status code {response.status_code}: {response.text}")
     return response.json()['data'][0]['embedding']
 
-print(generate_together_embeddings('Hello world', 'togethercomputer/m2-bert-80M-32k-retrieval', os.environ['TOGETHER_API_KEY'])[:10])
+print(generate_together_embeddings(
+    'Hello world',
+    'togethercomputer/m2-bert-80M-32k-retrieval',
+    os.environ['TOGETHER_API_KEY'])[:10])
 ```
 
 ## Running LoCo
