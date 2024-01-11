@@ -7,11 +7,11 @@
 We're excited to release some new long-context M2-BERT models (2k, 8k, 32k) as well as embedding versions fine-tuned for long-context retrieval!
 As part of this release, we're also releasing a preview of LoCo, a new benchmark for long-context retrieval.
 
-Check out the [blog post](https://togethercomputer.com/blog/loco) for more details:
+Check out the [blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) for more details:
 
 **Long-Context Retrieval Models with Monarch Mixer**\
 Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
-[Blog post]().
+[Blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval).
 
 Paper coming soon - we're releasing the code and models first to get **your feedback** on how well these early checkpoints perform, and how else we should evaluate long-context retrieval.
 **Here are some particular calls to action for feedback if you’re interested in long-context retrieval:**

@@ -2,7 +2,7 @@
 
 <!-- ![M2 logo](assets/m2-bert-logo.png) -->
 
-**Update January 9, 2024:** We are excited to release new long-context M2-BERT models, with versions fine-tuned for embeddings! Se the [blog post]() for more details, and check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more details!
+**Update January 11, 2024:** We are excited to release new long-context M2-BERT models, with versions fine-tuned for embeddings! Se the [blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) for more details, and check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more details!
 
 <p align="center">
   <img width="40%" src="assets/monarch_mixing_drink.png">
@@ -17,8 +17,8 @@ Jon Saad-Falcon, Dan Fu, Simran Arora. Blog post, Jan 9 2024.\
 [Blog post]().
 
 **Updates**:
-* **January 9, 2024:** M2-BERT retrieval models are now available on Together API! Check out instructions [below](#getting-started-with-embeddings) for running them!
-* **January 9, 2024:** New long-context M2-BERT models available (2k, 8k, and 32k), as well as retrieval versions for embeddings. Also releasing a preview of LoCo, a new benchmark for long-context retrieval! Check out our [blog]() to read more, and try the models out [here](bert/EMBEDDINGS.md)!
+* **January 11, 2024:** M2-BERT retrieval models are now available on Together API! Check out instructions [below](#getting-started-with-embeddings) for running them!
+* **January 11, 2024:** New long-context M2-BERT models available (2k, 8k, and 32k), as well as retrieval versions for embeddings. Also releasing a preview of LoCo, a new benchmark for long-context retrieval! Check out our [blog](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) to read more, and try the models out [here](bert/EMBEDDINGS.md)!
 * **October 21, 2023:** M2-BERT-large checkpoints are now up on HuggingFace ([260M](https://huggingface.co/danfu09/m2-bert-260m), [341M](https://huggingface.co/danfu09/m2-bert-341m)). The 260M model matches BERT-large in GLUE fine-tuning with 24% fewer parameters, and the 341M model outperforms BERT-large.
 * **October 18, 2023:** M2 paper is now up on arXiv, and will be presented at NeurIPS as an oral! 
 
