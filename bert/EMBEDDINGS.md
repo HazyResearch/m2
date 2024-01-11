@@ -35,7 +35,7 @@ pip install git+https://github.com/HazyResearch/flash-fft-conv.git#subdirectory=
 pip install git+https://github.com/HazyResearch/flash-fft-conv.git
 ```
 
-If you don't have it installed, you can still run the code, but you will need to set `use_flashfft` to `False`` in the `yamls/embeddings` files.
+If you don't have it installed, you can still run the code, but you will need to set `use_flashfft` to `False` in the `yamls/embeddings` files.
 Model loading will print out that you are missing some parameters, but that is fine.
 
 For inference, you additionally need to install the dependencies in [requirements-embeddings.txt](requirements-embeddings.txt).
