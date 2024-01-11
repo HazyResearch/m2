@@ -50,7 +50,7 @@ You can download pretrained checkpoints from HuggingFace:
 ## Generating Embeddings
 
 You can see [embed_text.py](embed_text.py) for a minimal example of generating embeddings using the M2 BERT models.
-We do not recommend using this to process many documents, since it runs with batch size 1.
+We do not recommend using this script on its own to process many documents, since it re-loads the model from scratch every time and runs with batch size 1.
 
 ```bash
 python embed_text.py --text "hello world" --model-name togethercomputer/m2-bert-80M-2k-retrieval --yaml-file yamls/embeddings/m2-bert-80M-2k-retrieval.yaml
