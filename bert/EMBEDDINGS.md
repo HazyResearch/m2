@@ -23,6 +23,7 @@ Paper coming soon - we're releasing the code and models first to get **your feed
 * [Obtaining Pretrained Checkpoints](#obtaining-pretrained-checkpoints)
 * [Generating Embeddings](#generating-embeddings)
 * [Running LoCo](#running-loco)
+* [Training](#training)
 
 ## Setup
 
