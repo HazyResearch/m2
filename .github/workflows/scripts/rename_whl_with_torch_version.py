@@ -1,8 +1,5 @@
-import os, shutil, glob, re
-import torch
-
+import os, shutil, glob, re, torch
 torch_name  = 'torch' + (torch.__version__.split('+')[0] + 'cu' + torch.version.cuda).replace('.', '') 
-
 # get the .whl file in the dist directory and rename 
 file = glob.glob(os.path.join('dist', '*.whl'))
 if file:
