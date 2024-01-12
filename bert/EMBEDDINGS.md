@@ -131,3 +131,9 @@ python loco_eval.py --model-name togethercomputer/m2-bert-80M-32k-retrieval --to
 ## Training
 
 You can use [embeddings_train.py](embeddings_train.py) to train your own M2-BERT embedding models.
+
+## Expected Warnings
+
+During query and passage encoding following message arises from the BERT tokenizer. It does not pertain to the M2 long context models and can be ignored.  
+```Token indices sequence length is longer than the specified maximum sequence length for this model... Running this sequence through the model will result 
+in indexing errors'''
