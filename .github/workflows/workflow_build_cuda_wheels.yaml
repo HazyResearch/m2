@@ -1,0 +1,118 @@
+name: install_wheels_cuda
+
+on:
+  workflow_call:
+    inputs:
+      setuppypath:
+        required: true
+        type: string
+        description: "path to the dir of the setup.py that should be built."
+      
+env:
+  SETUPPYPATH: ${{ inputs.setuppypath }}
+
+jobs:
+  build_wheels:
+    name: Build Cuda Wheels for torch
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
+        cuda: ["11.8.0", "12.1.1"]
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CUDA_VERSION: ${{ matrix.cuda }}
+      # define where the setup.py is located
+    
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@v1.3.0
+        if: runner.os == 'Linux'
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: false
+        
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.pyver }}
+
+      - name: Setup Mamba
+        uses: conda-incubator/setup-miniconda@v2.2.0
+        with:
+          activate-environment: "build"
+          python-version: ${{ matrix.pyver }}
+          miniforge-variant: Mambaforge
+          miniforge-version: latest
+          use-mamba: true
+          add-pip-as-python-dependency: true
+          auto-activate-base: false
+          
+      - name: Install Dependencies
+        run: |
+          # Install CUDA toolkit
+          mamba install -y 'cuda' -c "nvidia/label/cuda-${env:CUDA_VERSION}"
+
+          # Env variables
+          $env:CUDA_PATH = $env:CONDA_PREFIX
+          $env:CUDA_HOME = $env:CONDA_PREFIX
+          
+          # Install torch
+          $cudaVersion = $env:CUDA_VERSION.Replace('.', '')
+          $cudaVersionPytorch = $cudaVersion.Substring(0, $cudaVersion.Length - 1)
+          if ([int]$cudaVersionPytorch -gt 118) { $pytorchVersion = "torch==2.1.0" } else {$pytorchVersion = "torch==2.0.1"}
+          python3 -m pip install --upgrade --no-cache-dir $pytorchVersion+cu$cudaVersionPytorch --index-url https://download.pytorch.org/whl/cu$cudaVersionPytorch
+          python3 -m pip install build setuptools wheel ninja numpy
+
+          # Print version information
+          python3 --version
+          python3 -c "import torch; print('PyTorch:', torch.__version__)"
+          python3 -c "import torch; print('CUDA:', torch.version.cuda)"
+          python3 -c "import os; print('CUDA_HOME:', os.getenv('CUDA_HOME', None))"
+          python3 -c "from torch.utils import cpp_extension; print (cpp_extension.CUDA_HOME)"
+
+      - name: Build Wheel
+        run: |
+          $env:CUDA_PATH = $env:CONDA_PREFIX
+          $env:CUDA_HOME = $env:CONDA_PREFIX
+
+          # build the wheel
+          cd $env:SETUPPYPATH
+          python3 setup.py sdist bdist_wheel 
+
+          # rename wheel to reflect cuda version and torch version bash: dist/*.whl
+          $WHEEL_PATH = python3 -c "if True: \
+          import os, shutil, glob, re, torch;\
+          torch_name  = 'torch' + (torch.__version__.split('+')[0] + 'cu' + torch.version.cuda).replace('.', '');\
+          file = glob.glob(os.path.join('dist', '*.whl'))[0];\
+          current_dir = os.getcwd();\
+          insert_pos = re.search('-cp[0-9]+-cp[0-9]+-', file).start();\
+          new_name = f'{file[:insert_pos]}+{torch_name}{file[insert_pos:]}';\
+          print(os.path.join(os.getcwd(), new_name));\
+          shutil.move(file, new_name);"         
+          
+          ${{ github.workspace }}/.github/workflows/scripts/rename_whl_with_torch_version.py
+          # append to powershell env
+          echo "WHEEL_PATH=$WHEEL_PATH" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      
+      - name: Release with Notes
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ${{ env.WHEEL_PATH }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # from previous step
+          WHEEL_PATH: ${{ env.WHEEL_PATH }}
+
