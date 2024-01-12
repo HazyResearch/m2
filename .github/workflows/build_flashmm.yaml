@@ -1,3 +1,6 @@
+# MIT Licence, (c) Michael Feil, adapted from Casper Hansen's aws wheels
+# https://github.com/casper-hansen/AutoAWQ/tree/main/.github/workflows
+
 name: Build FlashMM Wheels with CUDA
 
 on:
@@ -95,9 +98,11 @@ jobs:
           python setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
+          $LASTCUDAARCH = ((($env:CUDA_ARCH_LIST -split ';')[-1] -replace '\+', '') -replace '\.', '')
+          
           $VERSION_APPENDIX = python -c "import torch; print('-torch' + (torch.__version__.split('+')[0] + '-cu' + torch.version.cuda).replace('.', ''))"
           $originalPattern = '^(flashmm-.*)\.whl$'
-          $newPattern = '${1}' + $VERSION_APPENDIX + (($env:CUDA_ARCH_LIST -split ';')[-1] -replace '\+', '') + '.whl'
+          $newPattern = '${1}' + $VERSION_APPENDIX + $LASTCUDAARCH + '.whl'
           # Get the .whl file in the dist directory and rename
           $file = Get-ChildItem -Path dist/*.whl          
           $file | Rename-Item -NewName { $_.Name -replace $originalPattern, $newPattern }          
