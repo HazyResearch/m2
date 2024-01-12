@@ -10,6 +10,7 @@ on:
       
 env:
   SETUPPYPATH: ${{ inputs.setuppypath }}
+  MAX_JOBS: "2"
 
 jobs:
   build_wheels:
