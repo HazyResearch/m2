@@ -1,12 +1,20 @@
-# name: install_wheels_cuda
+name: install_wheels_cuda
 
-# on:
-#   workflow_call:
-#     inputs:
-#       setuppypath:
-#         required: true
-#         type: string
-#         description: "path to the dir of the setup.py that should be built."
+on:
+  workflow_call:
+    inputs:
+      setuppypath:
+        required: true
+        type: string
+        description: "path to the dir of the setup.py that should be built."
       
-# env:
-#   FILE_PATH: ${{ inputs.setuppypath }}
+env:
+  FILE_PATH: ${{ inputs.setuppypath }}
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: pass
+        run: |
+          echo pass
