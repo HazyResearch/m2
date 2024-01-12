@@ -7,36 +7,10 @@ on:
       - "wheel*"
 
 jobs:
-  # release:
-  #   # Retrieve tag and create release
-  #   name: Create Release
-  #   runs-on: ubuntu-latest
-  #   outputs:
-  #     upload_url: ${{ steps.create_release.outputs.upload_url }}
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-
-  #     - name: Extract branch info
-  #       shell: bash
-  #       run: |
-  #         echo "release_tag=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
-
-      # - name: Create Release
-      #   id: create_release
-      #   uses: "actions/github-script@v6"
-      #   env:
-      #     RELEASE_TAG: ${{ env.release_tag }}
-      #   with:
-      #     github-token: "${{ secrets.GITHUB_TOKEN }}"
-      #     script: |
-      #       const script = require('.github/workflows/scripts/github_create_release.js')
-      #       await script(github, context, core)
 
   build_wheels:
     name: Build FlashMM Wheels
     runs-on: ${{ matrix.os }}
-    # needs: release
     
     strategy:
       matrix:
@@ -115,14 +89,16 @@ jobs:
           }
 
           cd csrc/flashmm
-
+          # build the wheel
           python setup.py sdist bdist_wheel 
 
-          # rename wheel to include cuda version and torch version bash:
-          # usually wheel_name=flashmm-0.x-cp310-cp310-linux_x86_64.whl
-          wheel_name=$(ls dist/*.whl)
-          wheel_name=${wheel_name}-cu${env:CUDA_VERSION}-torch${pytorchVersion#torch==}.whl
-          mv dist/*.whl $wheel_name          
+          # rename wheel to reflect cuda version and torch version bash: dist/*.whl
+          $VERSION_APPENDIX = python -c "import torch; print('-torch' + (torch.__version__.split('+')[0] + '-cu' + torch.version.cuda).replace('.', ''))"
+          $originalPattern = '^(flashmm-.*)\.whl$'
+          $newPattern = '${1}' + $VERSION_APPENDIX  + '.whl'
+          # Get the .whl file in the dist directory and rename
+          $file = Get-ChildItem -Path dist/*.whl          
+          $file | Rename-Item -NewName { $_.Name -replace $originalPattern, $newPattern }          
       
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
