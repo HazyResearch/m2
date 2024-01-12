@@ -100,8 +100,7 @@ jobs:
           new_name = f'{file[:insert_pos]}+{torch_name}{file[insert_pos:]}';\
           print(os.path.join(os.getcwd(), new_name));\
           shutil.move(file, new_name);"         
-          
-          ${{ github.workspace }}/.github/workflows/scripts/rename_whl_with_torch_version.py
+      
           # append to powershell env
           echo "WHEEL_PATH=$WHEEL_PATH" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       

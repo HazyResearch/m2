@@ -10,6 +10,6 @@ jobs:
   flashmm_wheels:
     uses:
       ./.github/workflows/workflow_build_cuda_wheels.yaml
-    with:
-      setuppypath: ${{ github.workspace }}/csrc/flashmm
+    with: # ${{ github.workspace }}
+      setuppypath: ./csrc/flashmm
     secrets: inherit
