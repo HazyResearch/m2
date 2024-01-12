@@ -2,8 +2,9 @@ name: Build FlashMM Wheels with CUDA
 
 on:
   push:
+    # push on github tags that start with "wheel"
     tags:
-      - "v*"
+      - "wheel*"
 
 jobs:
   release:
