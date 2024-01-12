@@ -22,16 +22,16 @@ jobs:
         run: |
           echo "release_tag=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-      - name: Create Release
-        id: create_release
-        uses: "actions/github-script@v6"
-        env:
-          RELEASE_TAG: ${{ env.release_tag }}
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-          script: |
-            const script = require('.github/workflows/scripts/github_create_release.js')
-            await script(github, context, core)
+      # - name: Create Release
+      #   id: create_release
+      #   uses: "actions/github-script@v6"
+      #   env:
+      #     RELEASE_TAG: ${{ env.release_tag }}
+      #   with:
+      #     github-token: "${{ secrets.GITHUB_TOKEN }}"
+      #     script: |
+      #       const script = require('.github/workflows/scripts/github_create_release.js')
+      #       await script(github, context, core)
 
   build_wheels:
     name: Build FlashMM Wheels
