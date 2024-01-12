@@ -1,7 +1,7 @@
 # MIT Licence, (c) Michael Feil, adapted from Casper Hansen's aws wheels
 # https://github.com/casper-hansen/AutoAWQ/tree/main/.github/workflows
 
-name: Build FlashMM Wheels with CUDA
+name: Build Wheels with CUDA
 
 on:
   push:
@@ -12,7 +12,7 @@ on:
 jobs:
 
   build_wheels:
-    name: Build FlashMM Wheels
+    name: Build Cuda Wheels for torch
     runs-on: ${{ matrix.os }}
     
     strategy:
@@ -25,6 +25,8 @@ jobs:
         shell: pwsh
     env:
       CUDA_VERSION: ${{ matrix.cuda }}
+      # define where the setup.py is located
+      FILE_PATH: ${{ github.workspace }}/csrc/flashmm
     
     steps:
       - name: Free Disk Space
@@ -85,7 +87,7 @@ jobs:
           $env:CUDA_HOME = $env:CONDA_PREFIX
 
           # build the wheel
-          cd csrc/flashmm
+          cd $env:FILE_PATH
           python3 setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
@@ -96,6 +98,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            ./csrc/flashmm/dist/*.whl
+            "${{ env.FILE_PATH }}/dist/*.whl"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
