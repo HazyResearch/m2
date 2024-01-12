@@ -9,7 +9,7 @@ on:
 jobs:
   flashmm_wheels:
     uses:
-      ./m.github/workflows/workflow_build_cuda_wheels.yaml
+      ./.github/workflows/workflow_build_cuda_wheels.yaml
     with:
       # working-directory: libs/infinity_emb
       setuppath: ${{ github.workspace }}/csrc/flashmm
