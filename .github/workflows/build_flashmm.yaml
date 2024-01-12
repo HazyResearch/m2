@@ -40,8 +40,8 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-20.04] #, windows-latest]
-        # pyver: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
         pyver: ["3.10"]
         cuda: ["11.8.0", "12.1.1"]
     defaults:
@@ -116,7 +116,13 @@ jobs:
 
           cd csrc/flashmm
 
-          python setup.py sdist bdist_wheel
+          python setup.py sdist bdist_wheel 
+
+          # rename wheel to include cuda version and torch version bash:
+          # usually wheel_name=flashmm-0.x-cp310-cp310-linux_x86_64.whl
+          wheel_name=$(ls dist/*.whl)
+          wheel_name=${wheel_name}-cu${env:CUDA_VERSION}-torch${pytorchVersion#torch==}.whl
+          mv dist/*.whl $wheel_name          
       
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
