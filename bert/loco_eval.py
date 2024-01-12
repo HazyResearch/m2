@@ -21,7 +21,7 @@ from datetime import datetime
 import torch
 import torch.nn.functional as F
 
-from src.embeddings.create_LoCo import load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum, load_qasper
+from src.embeddings.create_loco import load_loco_from_hf
 from src.embeddings.dres import DenseRetrievalExactSearch as DRES
 
 from embeddings_inference import OpenAI_Encoder, Voyager_Encoder, Cohere_Encoder, M2_BERT_Encoder, Together_Encoder
@@ -116,17 +116,26 @@ if use_M2_BERT and not use_Together_API and checkpoint is None:
 batch_size_for_encoding = args.batch_size
 perform_BM25_and_reranking_with_BGE = args.perform_BM25_and_reranking_with_BGE
 
-# dataset_name: str, split: str, document_column: str, query_column: str, subset=None
-
-tau_scrolls_summ_screen_fd_config = ("tau/scrolls", "validation", "input", "output", "summ_screen_fd")
-tau_scrolls_gov_report_config = ("tau/scrolls", "validation", "input", "output", "gov_report")
-tau_scrolls_qmsum_config = ("tau/scrolls", "validation", "input", "output", "qmsum")
+tau_scrolls_summ_screen_fd_config = ("tau/scrolls", "test", "input", "output", "summ_screen_fd")
+tau_scrolls_gov_report_config = ("tau/scrolls", "test", "input", "output", "gov_report")
+tau_scrolls_qmsum_config = ("tau/scrolls", "test", "input", "output", "qmsum")
 qasper_title_config = ("qasper", "test", "full_text", "title", None)
 qasper_abstract_config = ("qasper", "test", "full_text", "abstract", None)
+
+multifieldqa_en_config = ("long_bench", "test", "context", "input", "multifieldqa_en")
+wikimqa_config = ("long_bench", "test", "context", "input", "2wikimqa")
+passage_retrieval_en_config = ("long_bench", "test", "context", "input", "passage_retrieval_en")
+legal_case_reports = ("legal_case_reports", "test", None, None, None)
+courtlistener_html = ("courtlistener", "test", "Document_HTML", "Query", "Document_HTML")
+courtlistener_plain_text = ("courtlistener", "test", "Document_Plain_Text", "Query", "Document_Plain_Text")
+stackoverflow = ("stackoverflow", "test", "passage", "query", None)
 
 total_datasets = [
     tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config,
     tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config
+    multifieldqa_en_config, wikimqa_config,
+    passage_retrieval_en_config, legal_case_reports,
+    courtlistener_html, courtlistener_plain_text, stackoverflow
 ]
 
 ######################################################################
@@ -177,17 +186,7 @@ for dataset in total_datasets:
 
         dataset_name = f'{dataset[0]}_{dataset[4]}_{dataset[3]}'
 
-        if dataset[0] == "tau/scrolls" and dataset[4] == "summ_screen_fd":
-            corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-        elif dataset[0] == "tau/scrolls" and dataset[4] == "gov_report":
-            corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-        elif dataset[0] == "tau/scrolls" and dataset[4] == "qmsum":
-            corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-        elif dataset[0] == "qasper":
-            corpus, queries, qrels = load_qasper(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-        else:
-            print("LoCo Dataset not found!")
-            assert False
+        corpus, queries, qrels = load_loco_from_hf(dataset[0], dataset[1], dataset[2], dataset[3], subset=dataset[4])
 
     ######################################################################
 
@@ -239,8 +238,8 @@ for dataset in total_datasets:
         #### Retrieve dense results (format of results is identical to qrels)
         results = retriever.retrieve(corpus, queries)
         if save_embeddings:
-            np.save(f'{dataset_name}_{args.save_embedding_prefix}_query.npy'.replace('/', '_'), model.query_embeddings)
-            np.save(f'{dataset_name}_{args.save_embedding_prefix}_corpus.npy'.replace('/', '_'), model.sub_corpus_embeddings)
+            np.save(f'embeddings/{dataset_name}_{args.save_embedding_prefix}_query.npy'.replace('/', '_'), model.query_embeddings)
+            np.save(f'embeddings/{dataset_name}_{args.save_embedding_prefix}_corpus.npy'.replace('/', '_'), model.sub_corpus_embeddings)
 
         ######################################################################
 

@@ -18,8 +18,7 @@ import numpy as np
 
 ##################################################
 
-from create_LoCo import load_multi_news, load_pubmed_qa, load_tau_fs, load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum 
-from create_LoCo import load_qasper, load_trivia_qa, load_kilt_dataset, load_long_bench, load_tau_scrolls_needle
+from src.embeddings.create_loco import load_loco_from_hf
 
 import torch
 import torch.nn.functional as F
@@ -55,29 +54,7 @@ def collect_dataset(dataset):
     corpus = []
     queries = []
     qrels = []
-    if dataset[0] == "tau/multi_news": 
-        corpus, queries, qrels = load_multi_news(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "pubmed_qa":
-        corpus, queries, qrels = load_pubmed_qa(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "tau/fs":
-        corpus, queries, qrels = load_tau_fs(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "tau/scrolls" and dataset[4] == "summ_screen_fd":
-        corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "tau/scrolls" and dataset[4] == "gov_report":
-        corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "tau/scrolls" and dataset[4] == "qmsum":
-        corpus, queries, qrels = load_tau_scrolls_for_summ_screen_fd_gov_report_qmsum(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "qasper":
-        corpus, queries, qrels = load_qasper(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "tau/mrqa" and dataset[4] == "triviaqa":
-        corpus, queries, qrels = load_trivia_qa(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "kilt":
-        corpus, queries, qrels = load_kilt_dataset(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    elif dataset[0] == "long_bench":
-        corpus, queries, qrels = load_long_bench(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
-    else:
-        print("LoCo Dataset not found!")
-        assert False
+    corpus, queries, qrels = load_loco_from_hf(dataset[0], dataset[1], dataset[2], dataset[3], dataset[4])
 
     print("-----------------------------------------------")
     print("Dataset: " + str(dataset[4]))
@@ -93,59 +70,28 @@ def collect_dataset(dataset):
 
 ##################################################
 
-def gather_LoCo_training_examples(loco_example_count, loco_evaluation_set_count, threshold_for_negatives, negatives_per_query, use_negatives_from_same_dataset_for_MNRL, 
+def gather_loco_training_examples(loco_example_count, loco_evaluation_set_count, threshold_for_negatives, negatives_per_query, use_negatives_from_same_dataset_for_MNRL, 
                                   tokenizer, use_memory_bank, query_cap_per_dataset, loss_choice, dataset_choice, use_negatives_from_same_dataset_for_multidataset_finetuning):
 
-    pubmed_qa_config = ("pubmed_qa", "train", "context", "question", "pqa_labeled") #pqa_artificial
-
-    triviaqa_config = ("tau/mrqa", "train", "context", "question", "triviaqa")
-    nq_config = ("kilt", "train", "Document", "Query", "nq")
-    hotpotqa_config = ("kilt", "train", "Document", "Query", "hotpotqa")
-    wow_config = ("kilt", "train", "Document", "Query", "wow")
-    fever_config = ("kilt", "train", "Document", "Query", "fever")
-
-    multinews_config = ("tau/multi_news", "train", "document", "summary", None)
-    tau_fs_config = ("tau/fs", "train", "article", "abstract", "arxiv")
     tau_scrolls_summ_screen_fd_config = ("tau/scrolls", "train", "input", "output", "summ_screen_fd")
     tau_scrolls_gov_report_config = ("tau/scrolls", "train", "input", "output", "gov_report")
     tau_scrolls_qmsum_config = ("tau/scrolls", "train", "input", "output", "qmsum")
     qasper_title_config = ("qasper", "train", "full_text", "title", None)
     qasper_abstract_config = ("qasper", "train", "full_text", "abstract", None)
+    multifieldqa_en_config = ("long_bench", "train", "context", "input", "multifieldqa_en")
+    
+    wikimqa_config = ("long_bench", "train", "context", "input", "2wikimqa")
+    passage_retrieval_en_config = ("long_bench", "train", "context", "input", "passage_retrieval_en")
+    legal_case_reports = ("legal_case_reports", "train", None, None, None)
+    courtlistener_html = ("courtlistener", "train", "Document_HTML", "Query", "Document_HTML")
+    courtlistener_plain_text = ("courtlistener", "train", "Document_Plain_Text", "Query", "Document_Plain_Text")
+    stackoverflow = ("stackoverflow", "train", "passage", "query", None)
 
-    multifieldqa_en_config = ("long_bench", "test", "context", "input", "multifieldqa_en")
-    hotpotqa_long_bench_config = ("long_bench", "test", "context", "input", "hotpotqa")
-    wikimqa_config = ("long_bench", "test", "context", "input", "2wikimqa")
-    gov_report_long_bench_config = ("long_bench", "test", "context", "input", "gov_report")
-    multi_news_long_bench_config = ("long_bench", "test", "context", "input", "multi_news")
-    passage_retrieval_en_config = ("long_bench", "test", "context", "input", "passage_retrieval_en")
-    vlsp_config = ("long_bench", "test", "input", "output", "vlsp")
-
-    if dataset_choice == "five_set_loco":
+    if dataset_choice == "LoCoV1":
         training_datasets = [tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config,
-                             tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config]
-    elif dataset_choice == "four_set_loco":
-        training_datasets = [tau_scrolls_summ_screen_fd_config, tau_scrolls_qmsum_config, 
-                             qasper_title_config, qasper_abstract_config]
-    elif dataset_choice == "kilt":
-        training_datasets = [nq_config, hotpotqa_config, wow_config, fever_config]
-    elif dataset_choice == "kilt_needle_in_haystack":
-        training_datasets = [nq_config]
-    elif dataset_choice == "long_bench":
-        training_datasets = [multifieldqa_en_config, hotpotqa_long_bench_config, wikimqa_config, 
-                             gov_report_long_bench_config, multi_news_long_bench_config, passage_retrieval_en_config, vlsp_config]
-    elif dataset_choice == "reduced_loco":
-        training_datasets = [tau_scrolls_qmsum_config]
-    elif dataset_choice == "two_set_loco":
-        training_datasets =  [tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config]
-    elif dataset_choice == "qasper":
-        training_datasets =  [qasper_title_config, qasper_abstract_config]
-    elif dataset_choice == "qasper_title":
-        training_datasets =  [qasper_title_config]
-    elif dataset_choice == "qasper_abstract":
-        training_datasets =  [qasper_abstract_config]
-    elif dataset_choice == "seven_set_loco":
-        training_datasets = [multinews_config, tau_fs_config, tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config,
-                             tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config]
+                             tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config,
+                             multifieldqa_en_config, wikimqa_config, passage_retrieval_en_config,
+                             courtlistener_html, courtlistener_plain_text, legal_case_reports, stackoverflow]
     else:
         raise ValueError("No training set selected!")
 
@@ -194,13 +140,14 @@ def gather_LoCo_training_examples(loco_example_count, loco_evaluation_set_count,
                 assert type(query) == str
 
                 used_negative_keys = []
+                if len(total_corpus_keys) <= 32: # Edge case: less documents than the negatives count per query
+                    negatives_per_query = len(total_corpus_keys) - 2
                 for negative_count in range(negatives_per_query + 1):
                     for qrel_key in qrels[query_key]:
 
                         positive_passage = corpus[qrel_key]['text']
                         assert type(positive_passage) == str
                         
-                        #for val in range(2): # query --> passage and passage --> query
                         for val in range(1): # query --> passage
                             
                             if random.choice([0, 1]) == 1 and not use_negatives_from_same_dataset_for_multidataset_finetuning:
@@ -313,6 +260,8 @@ def gather_LoCo_training_examples(loco_example_count, loco_evaluation_set_count,
                 assert type(query) == str
 
                 used_negative_keys = []
+                if len(total_corpus_keys) <= 32: # Edge case: less documents than the negatives count per query
+                    negatives_per_query = len(total_corpus_keys) - 2
                 for _ in range(negatives_per_query): #Create X negatives per query-positive passage
                     for qrel_key in qrels[query_key]:
 
@@ -344,7 +293,7 @@ def gather_LoCo_training_examples(loco_example_count, loco_evaluation_set_count,
 
 ##################################################
 
-def gather_MSMARCO_examples(examples_count, loss_choice):
+def gather_msmarco_examples(examples_count, loss_choice):
 
     # specify (query, positive sample, negative sample).
     pos_neg_ration = 4
