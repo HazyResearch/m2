@@ -98,6 +98,6 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            "${{ env.SETUPPYPATH }}/dist/*.whl"
+            "${{ github.workspace }}/${{ env.SETUPPYPATH }}/dist/*.whl"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
