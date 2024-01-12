@@ -14,16 +14,18 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-20.04] #, windows-latest]
-        # pyver: ["3.8", "3.9", "3.10", "3.11"]
-        pyver: ["3.10"]
+        os: [ubuntu-20.04, windows-latest]
+        pyver: ["3.8", "3.9", "3.10", "3.11"]
         cuda: ["11.8.0", "12.1.1"]
+        cudaarchlist: ["6.0;6.1;6.2;7.0;7.5;8.0;8.6+PTX", "6.0;6.1;6.2;7.0;7.5;7.0;7.5"]
     defaults:
       run:
         shell: pwsh
     env:
       PYPI_CUDA_VERSION: "12.1.1"  
       CUDA_VERSION: ${{ matrix.cuda }}
+      # Do not set archlist for now.
+      # CUDA_ARCH_LIST: ${{ matrix.cudaarchlist }}
     
     steps:
       - name: Free Disk Space
@@ -95,7 +97,7 @@ jobs:
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
           $VERSION_APPENDIX = python -c "import torch; print('-torch' + (torch.__version__.split('+')[0] + '-cu' + torch.version.cuda).replace('.', ''))"
           $originalPattern = '^(flashmm-.*)\.whl$'
-          $newPattern = '${1}' + $VERSION_APPENDIX  + '.whl'
+          $newPattern = '${1}' + $VERSION_APPENDIX + (($env:CUDA_ARCH_LIST -split ';')[-1] -replace '\+', '') + '.whl'
           # Get the .whl file in the dist directory and rename
           $file = Get-ChildItem -Path dist/*.whl          
           $file | Rename-Item -NewName { $_.Name -replace $originalPattern, $newPattern }          
