@@ -87,7 +87,7 @@ jobs:
           $env:CUDA_HOME = $env:CONDA_PREFIX
 
           # build the wheel
-          cd $env:SETUPPYPATH
+          cd ${{ github.workspace }}/$env:SETUPPYPATH
           python3 setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl

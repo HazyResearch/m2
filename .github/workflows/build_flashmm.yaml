@@ -11,5 +11,5 @@ jobs:
     uses:
       ./.github/workflows/workflow_build_cuda_wheels.yaml
     with: # ${{ github.workspace }}
-      setuppypath: ./csrc/flashmm
+      setuppypath: "csrc/flashmm"
     secrets: inherit
