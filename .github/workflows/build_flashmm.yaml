@@ -69,15 +69,15 @@ jobs:
           $cudaVersion = $env:CUDA_VERSION.Replace('.', '')
           $cudaVersionPytorch = $cudaVersion.Substring(0, $cudaVersion.Length - 1)
           if ([int]$cudaVersionPytorch -gt 118) { $pytorchVersion = "torch==2.1.0" } else {$pytorchVersion = "torch==2.0.1"}
-          python -m pip3 install --upgrade --no-cache-dir $pytorchVersion+cu$cudaVersionPytorch --index-url https://download.pytorch.org/whl/cu$cudaVersionPytorch
-          python -m pip3 install build setuptools wheel ninja numpy
+          python3 -m pip install --upgrade --no-cache-dir $pytorchVersion+cu$cudaVersionPytorch --index-url https://download.pytorch.org/whl/cu$cudaVersionPytorch
+          python3 -m pip install build setuptools wheel ninja numpy
 
           # Print version information
-          python --version
-          python -c "import torch; print('PyTorch:', torch.__version__)"
-          python -c "import torch; print('CUDA:', torch.version.cuda)"
-          python -c "import os; print('CUDA_HOME:', os.getenv('CUDA_HOME', None))"
-          python -c "from torch.utils import cpp_extension; print (cpp_extension.CUDA_HOME)"
+          python3 --version
+          python3 -c "import torch; print('PyTorch:', torch.__version__)"
+          python3 -c "import torch; print('CUDA:', torch.version.cuda)"
+          python3 -c "import os; print('CUDA_HOME:', os.getenv('CUDA_HOME', None))"
+          python3 -c "from torch.utils import cpp_extension; print (cpp_extension.CUDA_HOME)"
 
       - name: Build Wheel
         run: |
@@ -86,10 +86,10 @@ jobs:
 
           # build the wheel
           cd csrc/flashmm
-          python setup.py sdist bdist_wheel 
+          python3 setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
-          python ../../.github/workflows/scripts/rename_whl_with_torch_version.py        
+          python3 ../../.github/workflows/scripts/rename_whl_with_torch_version.py        
       
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
