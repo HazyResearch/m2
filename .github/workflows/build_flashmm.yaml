@@ -17,15 +17,15 @@ jobs:
     
     strategy:
       matrix:
-        os: [ubuntu-20.04, windows-latest]
-        pyver: ["3.8", "3.9", "3.10", "3.11"]
+        os: [ubuntu-20.04] # , windows-latest]
+        #  pyver: ["3.8", "3.9", "3.10", "3.11"]
+        pyver: ["3.10"]
         cuda: ["11.8.0", "12.1.1"]
         # cudaarchlist: ["6.0;6.1;6.2;7.0;7.5;8.0;8.6+PTX", "6.0;6.1;6.2;7.0;7.5;7.0;7.5"]
     defaults:
       run:
         shell: pwsh
     env:
-      PYPI_CUDA_VERSION: "12.1.1"  
       CUDA_VERSION: ${{ matrix.cuda }}
       # Do not set archlist for now.
       # CUDA_ARCH_LIST: ${{ matrix.cudaarchlist }}
@@ -88,24 +88,12 @@ jobs:
           $env:CUDA_PATH = $env:CONDA_PREFIX
           $env:CUDA_HOME = $env:CONDA_PREFIX
 
-          # Only add +cu118 to wheel if not releasing on PyPi
-          if ( $env:CUDA_VERSION -eq $env:PYPI_CUDA_VERSION ){
-            $env:PYPI_BUILD = 1
-          }
-
-          cd csrc/flashmm
           # build the wheel
+          cd csrc/flashmm
           python setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
-          $LASTCUDAARCH = ((($env:CUDA_ARCH_LIST -split ';')[-1] -replace '\+', '') -replace '\.', '')
-          
-          $VERSION_APPENDIX = python -c "import torch; print('-torch' + (torch.__version__.split('+')[0] + '-cu' + torch.version.cuda).replace('.', ''))"
-          $originalPattern = '^(flashmm-.*)\.whl$'
-          $newPattern = '${1}' + $VERSION_APPENDIX + $LASTCUDAARCH + '.whl'
-          # Get the .whl file in the dist directory and rename
-          $file = Get-ChildItem -Path dist/*.whl          
-          $file | Rename-Item -NewName { $_.Name -replace $originalPattern, $newPattern }          
+          python ../../.github/workflows/scripts/rename_whl_with_torch_version.py        
       
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
