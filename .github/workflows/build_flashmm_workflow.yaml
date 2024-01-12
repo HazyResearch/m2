@@ -12,5 +12,5 @@ jobs:
       ./.github/workflows/workflow_build_cuda_wheels.yaml
     with:
       # working-directory: libs/infinity_emb
-      setuppath: ${{ github.workspace }}/csrc/flashmm
+      setuppypath: ${{ github.workspace }}/csrc/flashmm
     secrets: inherit
