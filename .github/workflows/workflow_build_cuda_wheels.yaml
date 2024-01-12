@@ -93,11 +93,13 @@ jobs:
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
           $WHEEL_PATH = python3 -c "if True: \
           import os, shutil, glob, re, torch;\
-          torch_name  = 'torch' + (torch.__version__.split('+')[0] + 'cu' + torch.version.cuda).replace('.', '');\
+          torch_name  = '+torch' + (torch.__version__.split('+')[0] + 'cu' + torch.version.cuda).replace('.', '');\
           file = glob.glob(os.path.join('dist', '*.whl'))[0];\
           current_dir = os.getcwd();\
-          insert_pos = re.search('-cp[0-9]+-cp[0-9]+-', file).start();\
-          new_name = f'{file[:insert_pos]}+{torch_name}{file[insert_pos:]}';\
+          insert_pos = re.search('-cp[0-9]+-cp[0-9]+-', file);\
+          torch_name = '' if insert_pos is None else torch_name;\
+          insert_pos = re.search('-py3', file).start() if insert_pos is None else insert_pos.start();\
+          new_name = f'{file[:insert_pos]}{torch_name}{file[insert_pos:]}';\
           print(os.path.join(os.getcwd(), new_name));\
           shutil.move(file, new_name);"         
       
