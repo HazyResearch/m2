@@ -36,7 +36,7 @@ jobs:
   build_wheels:
     name: Build FlashMM Wheels
     runs-on: ${{ matrix.os }}
-    needs: release
+    # needs: release
     
     strategy:
       matrix:
