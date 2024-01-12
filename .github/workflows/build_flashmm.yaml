@@ -26,7 +26,7 @@ jobs:
     env:
       CUDA_VERSION: ${{ matrix.cuda }}
       # define where the setup.py is located
-      FILE_PATH: ${{ github.workspace }}/csrc/flashmm
+      SETUPPYPATH: ${{ github.workspace }}/csrc/flashmm
     
     steps:
       - name: Free Disk Space
@@ -87,17 +87,17 @@ jobs:
           $env:CUDA_HOME = $env:CONDA_PREFIX
 
           # build the wheel
-          cd $env:FILE_PATH
+          cd $env:SETUPPYPATH
           python3 setup.py sdist bdist_wheel 
 
           # rename wheel to reflect cuda version and torch version bash: dist/*.whl
-          python3 ../../.github/workflows/scripts/rename_whl_with_torch_version.py        
+          python3 ${{ github.workspace }}/.github/workflows/scripts/rename_whl_with_torch_version.py        
       
       - name: Release with Notes
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
-            "${{ env.FILE_PATH }}/dist/*.whl"
+            "${{ env.SETUPPYPATH }}/dist/*.whl"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
