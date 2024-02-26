@@ -2,7 +2,7 @@
 
 <!-- ![M2 logo](assets/m2-bert-logo.png) -->
 
-**Update January 11, 2024:** We are excited to release new long-context M2-BERT models, with versions fine-tuned for embeddings! Se the [blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) for more details, and check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more details!
+**Update January 11, 2024:** We are excited to release new long-context M2-BERT models, with versions fine-tuned for embeddings! See the [blog post](https://hazyresearch.stanford.edu/blog/2024-01-11-m2-bert-retrieval) for more details, and check out [bert/EMBEDDINGS.md](bert/EMBEDDINGS.md) for more details!
 
 <p align="center">
   <img width="40%" src="assets/monarch_mixing_drink.png">
