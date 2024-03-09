@@ -73,22 +73,22 @@ train_loader:
       #  local: '${combined_folder_path}/my-copy-c4-2048'
       #  split: train
       #  proportion: 0.24
-      #wiki_variable:
-      #  local: '${combined_folder_path}/my-copy-wikipedia-variable'
-      #  split: train
-      #  proportion: 0.1
-      #wiki_2048:
-      #  local: '${combined_folder_path}/my-copy-wikipedia-2048'
-      #  split: train
-      #  proportion: 0.23
-      books_variable:
-        local: '${combined_folder_path}/my-copy-bookcorpus-variable'
+      wiki_variable:
+        local: '${combined_folder_path}/my-copy-wikipedia-variable'
         split: train
         proportion: 0.5 #0.1
-      books_2048:
-        local: '${combined_folder_path}/my-copy-bookcorpus-2048'
+      wiki_2048:
+        local: '${combined_folder_path}/my-copy-wikipedia-2048'
         split: train
         proportion: 0.5 #0.23
+      #books_variable:
+      #  local: '${combined_folder_path}/my-copy-bookcorpus-variable'
+      #  split: train
+      #  proportion: 0.5 #0.1
+      #books_2048:
+      #  local: '${combined_folder_path}/my-copy-bookcorpus-2048'
+      #  split: train
+      #  proportion: 0.5 #0.23
     split: # leave blank
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
