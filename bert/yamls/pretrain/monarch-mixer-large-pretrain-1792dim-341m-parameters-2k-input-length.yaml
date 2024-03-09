@@ -5,12 +5,12 @@ tokenizer_name: bert-base-uncased
 mlm_probability: 0.30 
 expand_positional_embeddings: True
 
-use_flash_fft: False
+use_flash_fft: True
 
 # System
 seed: 17
-device_eval_batch_size: 8 #8
-device_train_microbatch_size: 8 #8
+device_eval_batch_size: 16 #8
+device_train_microbatch_size: 16 #8
 # device_train_microbatch_size: auto
 precision: amp_bf16 
 
