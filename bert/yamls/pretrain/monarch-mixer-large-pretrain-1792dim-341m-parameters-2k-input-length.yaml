@@ -68,19 +68,11 @@ train_loader:
       wiki_variable:
         local: '${combined_folder_path}/my-copy-wikipedia-variable'
         split: train
-        proportion: 0.25
+        proportion: 0.5
       wiki_2048:
         local: '${combined_folder_path}/my-copy-wikipedia-2048'
         split: train
-        proportion: 0.25
-      books_variable:
-        local: '${combined_folder_path}/my-copy-bookcorpus-variable'
-        split: train
-        proportion: 0.25
-      books_2048:
-        local: '${combined_folder_path}/my-copy-bookcorpus-2048'
-        split: train
-        proportion: 0.25
+        proportion: 0.5
     split: # leave blank
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
