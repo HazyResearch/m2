@@ -5,7 +5,7 @@ tokenizer_name: bert-base-uncased
 mlm_probability: 0.30 
 expand_positional_embeddings: True
 
-use_flash_fft: True
+use_flash_fft: False
 
 # System
 seed: 17
