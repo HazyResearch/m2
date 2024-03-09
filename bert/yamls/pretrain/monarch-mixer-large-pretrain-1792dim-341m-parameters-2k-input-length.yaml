@@ -65,30 +65,6 @@ train_loader:
     local: # leave blank
     remote: # leave blank
     streams:
-      """c4_variable:
-        local: '${combined_folder_path}/my-copy-c4-variable'
-        split: train
-        proportion: 0.1
-      c4_2048:
-        local: '${combined_folder_path}/my-copy-c4-2048'
-        split: train
-        proportion: 0.24
-      wiki_variable:
-        local: '${combined_folder_path}/my-copy-wikipedia-variable'
-        split: train
-        proportion: 0.1
-      wiki_2048:
-        local: '${combined_folder_path}/my-copy-wikipedia-2048'
-        split: train
-        proportion: 0.23
-      books_variable:
-        local: '${combined_folder_path}/my-copy-bookcorpus-variable'
-        split: train
-        proportion: 0.1
-      books_2048:
-        local: '${combined_folder_path}/my-copy-bookcorpus-2048'
-        split: train
-        proportion: 0.23"""
       c4_variable:
         local: '${combined_folder_path}/my-copy-c4-variable'
         split: train
