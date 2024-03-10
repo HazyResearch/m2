@@ -1,5 +1,4 @@
 
-
 import math
 from sentence_transformers import models, losses, datasets
 from sentence_transformers import LoggingHandler, SentenceTransformer, util, InputExample
@@ -49,7 +48,7 @@ import src.create_bert as bert_module
 
 ################################################
 
-from src.embeddings.training_functions import gather_LoCo_training_examples, gather_MSMARCO_examples, expand_8k_model_to_32k
+from src.embeddings.training_functions import gather_loco_training_examples, gather_msmarco_examples, expand_8k_model_to_32k
 
 import torch
 import torch.nn.functional as F
@@ -71,6 +70,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument("--train_batch_size", type=int, required=True)
+    parser.add_argument("--mini_batch_size", type=int, required=True)
     parser.add_argument("--max_seq_length", type=int, required=True)
     parser.add_argument("--num_epochs", type=int, required=True)
     parser.add_argument("--checkpoint_save_steps", type=int, required=True)
@@ -81,14 +81,16 @@ if __name__ == '__main__':
     parser.add_argument("--loss_choice", type=str, required=True)
     parser.add_argument("--query_cap_per_dataset", type=int, required=True)
     parser.add_argument("--negatives_per_query", type=int, required=True)
+    parser.add_argument("--training_yaml", type=str, required=True)
 
     args = parser.parse_args()
 
     # Instructions
 
     model_name = "bert-base-uncased"
-    train_batch_size = args.train_batch_size #16 #32 #16 #32 #256
-    max_seq_length = args.max_seq_length #2048 #8192 #32768
+    train_batch_size = args.train_batch_size #32 to 256
+    mini_batch_size = args.mini_batch_size #2 to 64
+    max_seq_length = args.max_seq_length #[128, 2048, 8192, 32768]
     num_epochs = args.num_epochs
     use_amp = False
 
@@ -107,13 +109,12 @@ if __name__ == '__main__':
     ####
 
     dataset_choice = args.dataset_choice #"five_set_loco"
-    assert dataset_choice in ["seven_set_loco", "reduced_loco", "kilt", "long_bench", "five_set_loco", "two_set_loco", "qasper", "qasper_title", "qasper_abstract", "four_set_loco"]
+    assert dataset_choice in ["LoCoV1"]
 
     from_pretrained_checkpoint = True
 
     use_memory_bank = False
-    loss_choice = args.loss_choice # Options: "cosine_similarity_loss" #"online_contrastive_loss" #"triplet_loss" #"contrastive_loss" "multiple_negatives_ranking_loss"
-    config_choice = 4
+    loss_choice = args.loss_choice # Options: "orthogonal_projection_loss" #"online_contrastive_loss" #"triplet_loss" #"contrastive_loss" "multiple_negatives_ranking_loss"
     triplet_loss_distance_metric = "cosine"
     margin = 0.5
     size_average = True
@@ -133,7 +134,7 @@ if __name__ == '__main__':
     negatives_per_query = args.negatives_per_query #32 #64 # Number of negatives to add per query-positive passage pair
 
     use_M2_BERT = True
-    yaml_file = "yamls/finetune-glue/M2_SC_V1.yaml"
+    yaml_file = args.training_yaml
 
     ############################################################
 
@@ -175,7 +176,6 @@ if __name__ == '__main__':
     print("triplet_loss_distance_metric: " + str(triplet_loss_distance_metric))
     print("margin: " + str(margin))
     print("size_average: " + str(size_average))
-    print("config_choice: " + str(config_choice))
     print("run_data_parallelism: " + str(run_data_parallelism))
     print("learning_rate: " + str(learning_rate))
     print("random_state: " + str(random_state))
@@ -277,12 +277,12 @@ if __name__ == '__main__':
     ################################################################
 
     if use_msmarco_examples:
-        msmarco_train_samples = gather_MSMARCO_examples(msmarco_examples_count, loss_choice)
+        msmarco_train_samples = gather_msmarco_examples(msmarco_examples_count, loss_choice)
         nli_train_samples = nli_train_samples + msmarco_train_samples
         random.Random(random_state).shuffle(nli_train_samples)
 
     if use_long_context_examples:
-        long_context_training_examples, long_context_validation_examples, memory_bank_query_input_ids_to_negative_passages_dict = gather_LoCo_training_examples(loco_example_count, loco_evaluation_set_count, threshold_for_negatives, negatives_per_query, use_negatives_from_same_dataset_for_MNRL, tokenizer, use_memory_bank, query_cap_per_dataset, loss_choice, dataset_choice, use_negatives_from_same_dataset_for_multidataset_finetuning)
+        long_context_training_examples, long_context_validation_examples, memory_bank_query_input_ids_to_negative_passages_dict = gather_loco_training_examples(loco_example_count, loco_evaluation_set_count, threshold_for_negatives, negatives_per_query, use_negatives_from_same_dataset_for_MNRL, tokenizer, use_memory_bank, query_cap_per_dataset, loss_choice, dataset_choice, use_negatives_from_same_dataset_for_multidataset_finetuning)
         nli_train_samples = nli_train_samples + long_context_training_examples
         print("---------------------------------------------------------------------------")
         print("First Example in long_context_training_examples")
@@ -342,11 +342,7 @@ if __name__ == '__main__':
 
     # Training loss selection
     if loss_choice == "multiple_negatives_ranking_loss":
-        if use_memory_bank:
-            train_loss = losses.MultipleNegativesRankingLoss(model, 
-                                                            memory_bank_query_input_ids_to_negative_passages_dict=memory_bank_query_input_ids_to_negative_passages_dict)
-        else:
-            train_loss = losses.MultipleNegativesRankingLoss(model)
+        train_loss = losses.CachedMultipleNegativesRankingLoss(model, mini_batch_size=mini_batch_size)
     elif loss_choice == "contrastive_loss":
         train_loss = losses.ContrastiveLoss(model,
                                             margin=margin,
@@ -364,13 +360,8 @@ if __name__ == '__main__':
                                             triplet_margin=margin)
         else:
             raise ValueError("Triplet loss distance metric not found")
-    elif loss_choice == "cosine_similarity_loss":
-        train_loss = losses.CosineSimilarityLoss(model)
-    elif loss_choice == "mega_batch_margin_loss":
-        raise ValueError("Need to reconfigure MegaBatchMarginLoss!")
-        train_loss = losses.MegaBatchMarginLoss(model,
-                                                use_mini_batched_version=True,
-                                                mini_batch_size=4)
+    elif loss_choice == "orthogonal_projection_loss":
+        train_loss = losses.OrthogonalProjectionLoss(model)
     else:
         raise ValueError("Loss function not found!")
 

@@ -1,3 +1,4 @@
+
 # Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
 # Copyright (c) 2018-2021, NVIDIA CORPORATION.  All rights reserved.
 # Copyright (c) 2022, Tri Dao.
@@ -12,7 +13,9 @@ import sys
 import warnings
 from typing import List, Optional, Tuple, Union
 from functools import partial
+import numpy as np
 try:
+    #from flash_fft.conv import FlashFFTConv
     from flashfftconv import FlashFFTConv
 except:
     print("Could not import FlashFFTConv!")
@@ -30,6 +33,8 @@ from transformers.modeling_outputs import (MaskedLMOutput,
                                            SequenceClassifierOutput)
 from transformers.models.bert.modeling_bert import BertPreTrainedModel
 
+import pdb
+
 try:
     import flash_attn_triton as flash_attn_triton
     flash_attn_qkvpacked_func = flash_attn_triton.flash_attn_qkvpacked_func
@@ -43,6 +48,85 @@ logger = logging.getLogger(__name__)
 
 torch.backends.cuda.matmul.allow_tf32 = True
 torch.backends.cudnn.allow_tf32 = True
+
+
+import copy
+import logging
+import math
+import os
+import sys
+import warnings
+from typing import List, Optional, Tuple, Union
+from functools import partial
+
+# Add folder root to path to allow us to use relative imports regardless of what directory the script is run from
+sys.path.append(os.path.dirname(os.path.realpath(__file__)))
+
+##################################################################
+
+class AttentionPooler(nn.Module):
+
+    def __init__(self, config):
+        super(AttentionPooler, self).__init__()
+        self.Wqkv = nn.Linear(config.hidden_size, 3 * config.hidden_size)
+
+        self.dense1 = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.dense2 = nn.Linear(config.intermediate_size, config.hidden_size)
+
+        self.dense3 = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.dense4 = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.gelu = nn.GELU()
+
+        self.dense = nn.Linear(config.hidden_size, config.hidden_size)
+        self.activation = nn.Tanh()
+        
+
+    def forward(self,
+                hidden_states: torch.Tensor,
+                pool: Optional[bool] = True,
+                mask= None) -> torch.Tensor:
+        # We "pool" the model by simply taking the hidden state corresponding
+        # to the first token.
+        B, L, H = hidden_states.shape
+        qkv = self.Wqkv(hidden_states) # (batch_size, seq_len, 3 * hidden_size)
+
+        q_cls = qkv[:, :, :H] # (B, L, H)
+        k = qkv[:, :, H:2*H] # (B, L, H)
+        v = qkv[:, :, 2*H:] # (B, L, H)
+
+        attn_scores = torch.einsum('blh,bsh->bls', q_cls, k) / math.sqrt(H) # (B, L, L)
+        attn_scores = attn_scores * mask.unsqueeze(-1) if mask is not None else attn_scores
+        attn_scores = nn.functional.softmax(attn_scores, dim=1) # (B, L, L)
+
+        attn_output = torch.einsum('bls,bsh->blh', attn_scores, v) # (B, L, H)
+
+        attn_output = self.dense1(attn_output)
+        attn_output = self.gelu(attn_output)
+        attn_output = self.dense2(attn_output)
+
+        qkv = self.Wqkv(attn_output) # (batch_size, seq_len, 3 * hidden_size)
+
+        q_cls = qkv[:, :, :H] # (B, L, H)
+        k = qkv[:, :, H:2*H] # (B, L, H)
+        v = qkv[:, :, 2*H:] # (B, L, H)
+
+        attn_scores = torch.einsum('blh,bsh->bls', q_cls, k) / math.sqrt(H) # (B, L, L)
+        attn_scores = attn_scores * mask.unsqueeze(-1) if mask is not None else attn_scores
+        attn_scores = nn.functional.softmax(attn_scores, dim=1) # (B, L, L)
+
+        attn_output = torch.einsum('bls,bsh->blh', attn_scores, v) # (B, L, H)
+
+        attn_output = self.dense3(attn_output)
+        attn_output = self.gelu(attn_output)
+        attn_output = self.dense4(attn_output)
+        
+        first_token_tensor = attn_output[:, 0] if pool else hidden_states
+        pooled_output = self.dense(first_token_tensor)
+        pooled_output = self.activation(pooled_output)
+        
+        return pooled_output
+    
+##################################################################
 
 class BertEmbeddings(nn.Module):
     """Construct the embeddings for words, ignoring position.
@@ -68,9 +152,29 @@ class BertEmbeddings(nn.Module):
         # ALiBi doesn't use position embeddings
         if config.use_positional_encodings:
             self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+            #self.position_embeddings = nn.Embedding(512, 960)
+
+            """ concat_positional_embeddings = True
+            if concat_positional_embeddings:
+
+                positional_embeddings = self.position_embeddings
+                concatenated_output = nn.Embedding(num_embeddings=512, embedding_dim=768, device="cuda:0")
+                
+                # Copy the weights from the original embedding to the expanded one
+                concatenated_output.weight.data[:128] = positional_embeddings.weight.data
+                concatenated_output.weight.data[128:256] = positional_embeddings.weight.data
+                concatenated_output.weight.data[256:384] = positional_embeddings.weight.data
+                concatenated_output.weight.data[384:512] = positional_embeddings.weight.data
+
+                self.position_embeddings = concatenated_output """
+
+
         self.use_positional_encodings = config.use_positional_encodings
         self.token_type_embeddings = nn.Embedding(config.type_vocab_size,
                                                   config.hidden_size)
+        
+        print("config.hidden_dropout_prob: " + str(config.hidden_dropout_prob))
+        print("attention_probs_dropout_prob: " + str(config.attention_probs_dropout_prob))
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model
         # variable name and be able to load any TensorFlow checkpoint file
@@ -127,10 +231,19 @@ class BertEmbeddings(nn.Module):
             inputs_embeds = self.word_embeddings(input_ids)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
+        #pdb.set_trace()
+
         embeddings = inputs_embeds + token_type_embeddings
         if self.use_positional_encodings:
-            position_embeddings = self.position_embeddings(position_ids)
-            embeddings += position_embeddings
+            expanded_embeddings = False
+            if not expanded_embeddings:
+                position_embeddings = self.position_embeddings(position_ids)
+                embeddings += position_embeddings
+            else:
+                position_embeddings = self.position_embeddings(position_ids)
+                position_embeddings = torch.cat([position_embeddings, position_embeddings, position_embeddings, position_embeddings], axis=1)
+                embeddings += position_embeddings
+        
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         if return_position_encodings:
@@ -224,9 +337,12 @@ class BertUnpadSelfAttention(nn.Module):
             if convert_dtype:
                 # Triton implementation only supports fp16 and bf16
                 orig_dtype = qkv.dtype
-                qkv = qkv.to(torch.float16)
+                qkv = qkv.to(torch.float16) #qkv.to(torch.float16)
                 bias_dtype = bias.dtype
-                bias = bias.to(torch.float16)
+                bias = bias.to(torch.float16) #bias.to(torch.float16)
+                if torch.isnan(bias).any() or torch.isnan(qkv).any():
+                    print("NaNs in bias or qkv.")
+                    raise ValueError()
                 attention = flash_attn_qkvpacked_func(qkv, bias)
                 attention = attention.to(orig_dtype)
                 bias = bias.to(bias_dtype)
@@ -401,6 +517,8 @@ class BertLayer(nn.Module):
         self.monarch_mixer_sequence_mixing = config.monarch_mixer_sequence_mixing
         
         print(f"Using Monarch Mixer for Sequence Mixing: {config.monarch_mixer_sequence_mixing}")
+        print(f"hyena_filter_dropout: {config.hyena_filter_dropout}")
+
         if config.monarch_mixer_sequence_mixing:
             if config.use_flash_mm:
                 from src.mm.flash_mm import FlashMMSequenceMixing
@@ -455,14 +573,28 @@ class BertLayer(nn.Module):
         """
 
         if self.monarch_mixer_sequence_mixing:
-            attention_output = self.attention(hidden_states)
-            if type(attention_output) == tuple:
-                attention_output, _ = attention_output
+            with torch.autograd.set_detect_anomaly(True):
+                attention_output = self.attention(hidden_states)
+                if type(attention_output) == tuple:
+                    attention_output, _ = attention_output
         else:
-            attention_output = self.attention(hidden_states, cu_seqlens, seqlen,
-                                          subset_idx, indices, attn_mask, bias)
+            with torch.autograd.set_detect_anomaly(True):
+                attention_output = self.attention(hidden_states, cu_seqlens, seqlen,
+                                                  subset_idx, indices, attn_mask, bias)
+            
+        #print("Attention Layer Output")
+        #print(attention_output)
+            
+        if torch.isnan(attention_output).any():
+            print("NaNs in attention_output.")
+            raise ValueError()
 
-        layer_output = self.mlp(attention_output)
+        with torch.autograd.set_detect_anomaly(True):
+            layer_output = self.mlp(attention_output)
+
+        if torch.isnan(layer_output).any():
+            print("NaNs in layer_output.")
+            raise ValueError()
 
         return layer_output
 
@@ -480,16 +612,22 @@ class BertEncoder(nn.Module):
         self.layer = nn.ModuleList(
             [copy.deepcopy(layer) for _ in range(config.num_hidden_layers)])
         
+        #config.use_flash_fft = False
         if config.use_flash_fft:
             assert FlashFFTConv is not None, 'FlashFFTConv is not installed'
-            self.flashfft = FlashFFTConv(seqlen = 2 * config.max_position_embeddings, dtype=torch.bfloat16)
+            self.flashfft = FlashFFTConv(seqlen = 2 * config.max_position_embeddings, dtype=torch.bfloat16)#.to(torch.device("cuda:0"))
             self.use_flash_fft = config.use_flash_fft
 
             for layer in self.layer:
+                #layer.attention.flashfft = self.flashfft
                 layer.attention.filter_fn.flashfft = self.flashfft
                 layer.attention.filter_fn2.flashfft = self.flashfft
                 layer.attention.filter_fn.use_flash_fft = config.use_flash_fft
                 layer.attention.filter_fn2.use_flash_fft = config.use_flash_fft
+                
+        #for layer in self.layer:
+        #    layer.attention.filter_fn.use_flash_fft = config.use_flash_fft
+        #    layer.attention.filter_fn2.use_flash_fft = config.use_flash_fft
 
         self.monarch_mixer_sequence_mixing = config.monarch_mixer_sequence_mixing
         self.num_attention_heads = config.num_attention_heads
@@ -558,10 +696,19 @@ class BertEncoder(nn.Module):
         subset_mask: Optional[torch.Tensor] = None,
         position_encodings: Optional[torch.Tensor] = None,
     ) -> List[torch.Tensor]:
-
+        
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        extended_attention_mask = extended_attention_mask.to(
-            dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        #extended_attention_mask = extended_attention_mask.to(
+        #    dtype=next(self.parameters()).dtype)  # fp16 compatibility
+        extended_attention_mask = extended_attention_mask.to(dtype=torch.bfloat16)  # fp16 compatibility
+        if torch.isnan(extended_attention_mask).any():
+            print("NaNs in extended_attention_mask")
+            raise ValueError()
+        
+        ###
+        #extended_attention_mask = extended_attention_mask.to(dtype=torch.float32) # fp16 compatibility
+        ###
+        
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         attention_mask_bool = attention_mask.bool()
         batch, seqlen = hidden_states.shape[:2]
@@ -577,6 +724,10 @@ class BertEncoder(nn.Module):
         else:
             cu_seqlens = None
             indices = None
+
+        if torch.isnan(hidden_states).any():
+            print("NaNs in hidden_states.")
+            raise ValueError()
 
         # Add alibi matrix to extended_attention_mask
         if not self.monarch_mixer_sequence_mixing:
@@ -669,6 +820,8 @@ class BertPooler(nn.Module):
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
         self.activation = nn.Tanh()
         self.pool_all = config.pool_all
+        self.use_cls_token = config.use_cls_token
+        self.sequence_token_planting = config.sequence_token_planting
 
     def forward(self,
                 hidden_states: torch.Tensor,
@@ -676,12 +829,29 @@ class BertPooler(nn.Module):
                 mask= None) -> torch.Tensor:
         # We "pool" the model by simply taking the hidden state corresponding
         # to the first token.
+
+        #pdb.set_trace()
+
         if not self.pool_all:
-            first_token_tensor = hidden_states[:, 0] if pool else hidden_states
-            pooled_output = self.dense(first_token_tensor)
-            pooled_output = self.activation(pooled_output)
+            if self.sequence_token_planting:
+                first_token_tensor = hidden_states[:, 0]
+                count = 0
+                for example_number in range(hidden_states.shape[0]):
+                    for replace_position in range(1, int(hidden_states.shape[1] / 128)):
+                        if mask[example_number][replace_position * 128].item() == 1:
+                            first_token_tensor += hidden_states[example_number, replace_position * 128]
+                            count += 1
+                first_token_tensor = first_token_tensor / count
+                pooled_output = self.dense(first_token_tensor)
+                pooled_output = self.activation(pooled_output)
+            else:
+                first_token_tensor = hidden_states[:, 0] if pool else hidden_states
+                pooled_output = self.dense(first_token_tensor)
+                pooled_output = self.activation(pooled_output)
         else:
             # mean pool everything that isn't masked out
+            #print("Masking out for pooled!")
+            #pdb.set_trace()
             denom = torch.sum(mask, dim=1, keepdim=True)
             mean_tensor = torch.sum((hidden_states) * mask.unsqueeze(-1), dim = 1) / denom
             pooled_output = self.dense(mean_tensor)
@@ -755,7 +925,17 @@ class BertModel(BertPreTrainedModel):
         self.embeddings = BertEmbeddings(config)
         self.encoder = BertEncoder(config)
 
-        self.pooler = BertPooler(config) if add_pooling_layer else None
+        if "attention_pooling" not in config.__dict__.keys():
+            config.attention_pooling = False
+
+        #self.pooler = BertPooler(config) if add_pooling_layer else None
+        if add_pooling_layer and not config.attention_pooling:
+            self.pooler = BertPooler(config)
+        elif config.attention_pooling:
+            #print("Using attention pooling!")
+            self.pooler = AttentionPooler(config)
+        else:
+            self.pooler = None
         self.post_init()
 
 
@@ -803,28 +983,40 @@ class BertModel(BertPreTrainedModel):
             output_all_encoded_layers=output_all_encoded_layers,
             subset_mask=subset_mask,
             position_encodings=position_encodings)
+
+        #pdb.set_trace()
+
         if masked_tokens_mask is None:
             sequence_output = encoder_outputs[-1]
-            pooled_output = self.pooler(
-                sequence_output, mask = attention_mask) if self.pooler is not None else None
+            #if self.pooler is not None:
+            try:
+                pooled_output = self.pooler(sequence_output, mask = attention_mask) if self.pooler is not None else None
+            #else:
+            except:
+                pooled_output = None
         else:
             # TD [2022-03-01]: the indexing here is very tricky.
             attention_mask_bool = attention_mask.bool()
             subset_idx = subset_mask[attention_mask_bool]  # type: ignore
-            sequence_output = encoder_outputs[-1][
-                masked_tokens_mask[attention_mask_bool][subset_idx]]
-            if self.pooler is not None:
-                pool_input = encoder_outputs[-1][
-                    first_col_mask[attention_mask_bool][subset_idx]]
+            sequence_output = encoder_outputs[-1][masked_tokens_mask[attention_mask_bool][subset_idx]]
+            #if self.pooler is not None:
+            try:
+                pool_input = encoder_outputs[-1][first_col_mask[attention_mask_bool][subset_idx]]
                 pooled_output = self.pooler(pool_input, pool=False, mask = attention_mask)
-            else:
+            #else:
+            except:
                 pooled_output = None
 
         if not output_all_encoded_layers:
             encoder_outputs = sequence_output
 
-        if self.pooler is not None:
+        #pdb.set_trace()
+
+        #if self.pooler is not None:
+        try:
             return encoder_outputs, pooled_output
+        except:
+            return encoder_outputs, None
 
         return encoder_outputs, None
 
@@ -909,9 +1101,101 @@ class BertForMaskedLM(BertPreTrainedModel):
 
         state_dict = torch.load(pretrained_checkpoint)
         # If the state_dict was saved after wrapping with `composer.HuggingFaceModel`, it takes on the `model` prefix
+        #print("state_dict found!")
+        #print(state_dict.keys())
+
+        print("Loading pretrained checkpoint: " + pretrained_checkpoint)
+
+
+
+
+        ########################################
+
+        state_dict = torch.load(pretrained_checkpoint)
+        state_dict = state_dict['state']['model']
+
+        ########################################
+
+        model_size = 8192 #128
+        expand_positional_embeddings = config.expand_positional_embeddings
+        if expand_positional_embeddings:
+
+            print("Expanding positional embeddings")
+            original_embedding = state_dict['model.bert.embeddings.position_embeddings.weight']
+            
+            randomized_embeddings_list = [original_embedding]
+            model_size_to_range_set = {1024: 1, 128: 15, 4096: 8, 8192: 4}
+            #for j in range(1): #for j in range(3): 
+            for j in range(model_size_to_range_set[model_size]):
+                randomized_embeddings_list.append(original_embedding)
+            state_dict['model.bert.embeddings.position_embeddings.weight'] = torch.cat(randomized_embeddings_list, axis=0)
+
+            assert state_dict['model.bert.embeddings.position_embeddings.weight'].shape[0] in [32768] #[512, 2048, 4096, 8192]
+            assert state_dict['model.bert.embeddings.position_embeddings.weight'].shape[1] in [768] #[768, 960, 1536, 1792]
+
+            #print("position_ids")
+            #print(state_dict['model.bert.embeddings.position_ids'])
+            del state_dict['model.bert.embeddings.position_ids']
+
+            for i in range(0, 12):
+
+                def expand_parameter(current_param):
+                    
+                    #expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 2 * current_param.shape[1], current_param.shape[2]))
+                    #expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 4 * current_param.shape[1], current_param.shape[2]))
+                    expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 16 * current_param.shape[1], current_param.shape[2]))
+                    
+                    model_size_to_range_set_for_pos_z = {1024: 3, 128: 17, 4096: 11, 8192: 5}
+                    #for k in range(2, 3): #for k in range(2, 5): 
+                    for k in range(2, model_size_to_range_set_for_pos_z[model_size]):
+                        expanded_parameter.data[:, (k - 1) * current_param.shape[1]: (k) * current_param.shape[1], :] = current_param
+                    
+                    return expanded_parameter
+
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'] = expand_parameter(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'].shape[1] in [512, 2048, 4096, 8192, 32768]
+                
+                if "M2-110M-1024-CL" not in pretrained_checkpoint:
+                    state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'] = expand_parameter(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'])
+                    assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'].shape[1] in [512, 2048, 4096, 8192, 32768]
+
+                del state_dict["model.bert.encoder.layer." + str(i) + ".attention.filter_fn.pos_emb.t"]
+                if model_size != 1024:
+                    del state_dict["model.bert.encoder.layer." + str(i) + ".attention.filter_fn2.pos_emb.t"]
+
+                #pdb.set_trace()
+
+                """def expand_parameter_v2(current_param):
+                    expanded_parameter = nn.Parameter(torch.ones(current_param.shape[0], 4 * current_param.shape[1], current_param.shape[2]))
+                    #expanded_parameter = nn.Parameter(torch.ones(current_param.shape[0], 16 * current_param.shape[1], current_param.shape[2]))
+                    expanded_parameter.data[:, :current_param.shape[1], :] = current_param
+                    return expanded_parameter
+                
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'] = expand_parameter_v2(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'].shape[1] in [512, 2048, 4096, 8192]
+                
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'] = expand_parameter_v2(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'].shape[1] in [512, 2048, 4096, 8192]"""
+            
+        #if "M2-110M-1024-CL" in pretrained_checkpoint:
+        #    print("Expanding weights for M2-110M with 1024 context length!")
+        #    for k in range(0, 12):
+        #        model.bert.encoder.layer[k].mlp.gated_layers.weight = nn.Parameter(torch.zeros(6144, 768))#.to(torch.device("cuda:0"))
+        #        model.bert.encoder.layer[k].mlp.wo.weight = nn.Parameter(torch.zeros(768, 3072))#.to(torch.device("cuda:0"))
+
+        #################################################################################
+
+
+
+
+
+
         consume_prefix_in_state_dict_if_present(state_dict, prefix='model.')
         missing_keys, unexpected_keys = model.load_state_dict(state_dict,
                                                               strict=False)
+        
+        print("Masked LM of M2-BERT after loading weights")
+        print(model)
 
         if len(missing_keys) > 0:
             logger.warning(
@@ -1053,6 +1337,10 @@ class BertForSequenceClassification(BertPreTrainedModel):
         self.dropout = nn.Dropout(classifier_dropout)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
+        if config.sequence_token_planting == True:
+            from transformers import AutoTokenizer
+            self.tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased", model_max_length=config.max_position_embeddings)
+
         # Initialize weights and apply final processing
         self.post_init()
 
@@ -1070,20 +1358,193 @@ class BertForSequenceClassification(BertPreTrainedModel):
         if from_tf:
             raise ValueError(
                 'TensorFlow is not supported.')
+        
+        ############################################################
+
+        #pdb.set_trace()
 
         state_dict = torch.load(pretrained_checkpoint)
+        if config.performing_BEIR_evaluation:
+            prefix = 'model.'
+            state_dict = {prefix + key: value for key, value in state_dict.items()}
+        else:
+            state_dict = state_dict['state']['model']
+        
         # If the state_dict was saved after wrapping with `composer.HuggingFaceModel`, it takes on the `model` prefix
+
+        #print("Keys Found")
+        #for key in state_dict.keys():
+        #    if ".t" in key or ".z" in key:
+        #    #if "delta" in key:
+        #        print(key)
+        #        print(state_dict[key].shape)
+        
+        #pdb.set_trace()
+
+        ########################################
+
+        #print("Initiliazed BERT model before loading weights")
+        #print(model)
+        #pdb.set_trace()
+
+        model_size = 128
+        expand_positional_embeddings = config.expand_positional_embeddings
+        if expand_positional_embeddings:
+
+            print("Expanding positional embeddings")
+            original_embedding = state_dict['model.bert.embeddings.position_embeddings.weight']
+            
+            randomized_embeddings_list = [original_embedding]
+            model_size_to_range_set = {1024: 1, 128: 3} #{1024: 1, 128: 15}
+            #for j in range(1): #for j in range(3): 
+            for j in range(model_size_to_range_set[model_size]):
+                randomized_embeddings_list.append(original_embedding)
+            state_dict['model.bert.embeddings.position_embeddings.weight'] = torch.cat(randomized_embeddings_list, axis=0)
+
+            assert state_dict['model.bert.embeddings.position_embeddings.weight'].shape[0] in [512] #[512, 2048, 4096, 8192]
+            assert state_dict['model.bert.embeddings.position_embeddings.weight'].shape[1] in [960] #[768, 960, 1536, 1792]
+
+            print("position_ids")
+            print(state_dict['model.bert.embeddings.position_ids'])
+            del state_dict['model.bert.embeddings.position_ids']
+
+            for i in range(0, 12):
+
+                def expand_parameter(current_param):
+                    
+                    #expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 2 * current_param.shape[1], current_param.shape[2]))
+                    #expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 4 * current_param.shape[1], current_param.shape[2]))
+                    expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 16 * current_param.shape[1], current_param.shape[2]))
+                    
+                    model_size_to_range_set_for_pos_z = {1024: 3, 128: 5} #{1024: 3, 128: 17}
+                    #for k in range(2, 3): #for k in range(2, 5): 
+                    for k in range(2, model_size_to_range_set_for_pos_z[model_size]):
+                        expanded_parameter.data[:, (k - 1) * current_param.shape[1]: (k) * current_param.shape[1], :] = current_param
+                    
+                    return expanded_parameter
+
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'] = expand_parameter(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.z'].shape[1] in [512, 2048, 4096, 8192]
+                
+                if "M2-110M-1024-CL" not in pretrained_checkpoint:
+                    state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'] = expand_parameter(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'])
+                    assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.z'].shape[1] in [512, 2048, 4096, 8192]
+
+                del state_dict["model.bert.encoder.layer." + str(i) + ".attention.filter_fn.pos_emb.t"]
+                if model_size != 1024:
+                    del state_dict["model.bert.encoder.layer." + str(i) + ".attention.filter_fn2.pos_emb.t"]
+
+                #pdb.set_trace()
+
+                """def expand_parameter_v2(current_param):
+                    expanded_parameter = nn.Parameter(torch.ones(current_param.shape[0], 4 * current_param.shape[1], current_param.shape[2]))
+                    #expanded_parameter = nn.Parameter(torch.ones(current_param.shape[0], 16 * current_param.shape[1], current_param.shape[2]))
+                    expanded_parameter.data[:, :current_param.shape[1], :] = current_param
+                    return expanded_parameter
+                
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'] = expand_parameter_v2(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn.pos_emb.t'].shape[1] in [512, 2048, 4096, 8192]
+                
+                state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'] = expand_parameter_v2(state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'])
+                assert state_dict['model.bert.encoder.layer.' + str(i) + '.attention.filter_fn2.pos_emb.t'].shape[1] in [512, 2048, 4096, 8192]"""
+            
+        #if "M2-110M-1024-CL" in pretrained_checkpoint:
+        #    print("Expanding weights for M2-110M with 1024 context length!")
+        #    for k in range(0, 12):
+        #        model.bert.encoder.layer[k].mlp.gated_layers.weight = nn.Parameter(torch.zeros(6144, 768))#.to(torch.device("cuda:0"))
+        #        model.bert.encoder.layer[k].mlp.wo.weight = nn.Parameter(torch.zeros(768, 3072))#.to(torch.device("cuda:0"))
+
+        
+                   
+        ###################################################
+
+        print("pretrained_checkpoint")
+        print(pretrained_checkpoint)
+        
         consume_prefix_in_state_dict_if_present(state_dict, prefix='model.')
-        missing_keys, unexpected_keys = model.load_state_dict(state_dict,
+
+        #print("position_ids in model")
+        #print(model.bert.embeddings.position_ids)
+        
+        missing_keys, unexpected_keys = model.load_state_dict(state_dict, 
                                                               strict=False)
+        
+        ########################################
+        
+        #pdb.set_trace()
+        #if config.use_cls_token:
+        #    print("Using CLS token! Keeping pooler but not using pooled output")
+        #    del model.bert.pooler
+
+        ########################################
+        
+        #print("Initiliazed and loaded BERT model")
+        #print(model)
+        #print("model.bert.encoder.layer[10].attention.filter_fn2.pos_emb.t")
+        #print(model.bert.encoder.layer[10].attention.filter_fn2.pos_emb.t.shape)
+        #print(model.bert.encoder.layer[10].attention.filter_fn2.pos_emb.t)
+
+        ########################################
+
+        """expand_positional_embeddings = True
+        if expand_positional_embeddings:
+            
+            original_embedding = model.bert.embeddings.position_embeddings
+            new_num_embeddings = 4 * original_embedding.num_embeddings
+            expanded_embedding = nn.Embedding(num_embeddings=new_num_embeddings, embedding_dim=original_embedding.embedding_dim)
+
+            expanded_embedding.weight.data[0:128] = original_embedding.weight.data[0:128]
+            expanded_embedding.weight.data[128:256] = original_embedding.weight.data[0:128]
+            expanded_embedding.weight.data[256:384] = original_embedding.weight.data[0:128]
+            expanded_embedding.weight.data[384:512] = original_embedding.weight.data[0:128]
+
+            model.bert.embeddings.position_embeddings = expanded_embedding
+            assert expanded_embedding.weight.shape[0] == 512
+            assert expanded_embedding.weight.shape[1] in [768, 960, 1536, 1792]
+
+            original_position_ids = model.bert.embeddings.position_ids
+            model.bert.embeddings.position_ids = torch.cat([original_position_ids, original_position_ids, original_position_ids, original_position_ids], axis=1)
+            assert model.bert.embeddings.position_ids.shape[0] == 1
+            assert model.bert.embeddings.position_ids.shape[1] == 512
+
+            for i in range(0, 12):
+
+                def expand_parameter(current_param):
+                    expanded_parameter = nn.Parameter(torch.zeros(current_param.shape[0], 4 * current_param.shape[1], current_param.shape[2]))
+                    expanded_parameter.data[:, :current_param.shape[1], :] = current_param.data
+                    expanded_parameter.data[:, current_param.shape[1]: 2 * current_param.shape[1], :] = current_param.data
+                    expanded_parameter.data[:, 2 * current_param.shape[1]: 3 * current_param.shape[1], :] = current_param.data
+                    expanded_parameter.data[:, 3 * current_param.shape[1]: 4 * current_param.shape[1], :] = current_param.data
+                    return expanded_parameter
+
+                model.bert.encoder.layer[i].attention.filter_fn.pos_emb.z = expand_parameter(model.bert.encoder.layer[i].attention.filter_fn.pos_emb.z)
+                assert model.bert.encoder.layer[i].attention.filter_fn.pos_emb.z.shape[1] == 512
+                
+                model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.z = expand_parameter(model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.z)
+                assert model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.z.shape[1] == 512
+
+                #model.bert.encoder.layer[i].attention.filter_fn.pos_emb.t = expand_parameter(model.bert.encoder.layer[i].attention.filter_fn.pos_emb.t)
+                #assert model.bert.encoder.layer[i].attention.filter_fn.pos_emb.t.shape[1] == 512
+                
+                #model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.t = expand_parameter(model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.t)
+                #assert model.bert.encoder.layer[i].attention.filter_fn2.pos_emb.t.shape[1] == 512
+
+                ###################################################
+
+            print("Manipulated BERT model")
+            print(model)
+            #assert False"""
+
+        ################################################
+
 
         if len(missing_keys) > 0:
             logger.warning(
-                f"Found these missing keys in the checkpoint: {', '.join(missing_keys)}"
+                f"\nFound these missing keys in the checkpoint: {', '.join(missing_keys)}\n"
             )
         if len(unexpected_keys) > 0:
             logger.warning(
-                f"Found these unexpected keys in the checkpoint: {', '.join(unexpected_keys)}"
+                f"\nFound these unexpected keys in the checkpoint: {', '.join(unexpected_keys)}\n"
             )
 
         return model
@@ -1110,57 +1571,144 @@ class BertForSequenceClassification(BertPreTrainedModel):
 
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-        )
+        if self.config.sequence_token_planting:
+            print("Reached sequence_token_planting")
+            for example_number in range(input_ids.shape[0]):
+                for replace_position in range(1, int(input_ids.shape[1] / 128)): #+ 1 
+                    input_ids[example_number][replace_position * 128] = 101
+            
+        
+        try:
+            assert input_ids.shape[1] == self.config.max_position_embeddings
+        except:
+            print("Error with position embeddings!")
+            print("Input IDs shape: " + str(input_ids.shape))
+            print("Position Embeddings shape: " + str(self.config.max_position_embeddings))
+            assert input_ids.shape[1] == self.config.max_position_embeddings
+        if attention_mask is not None:
+            assert attention_mask.shape[1] == self.config.max_position_embeddings
+        
+        try:
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                outputs = self.bert(
+                        input_ids,
+                        attention_mask=attention_mask,
+                        token_type_ids=token_type_ids,
+                        position_ids=position_ids,
+                        head_mask=head_mask,
+                        inputs_embeds=inputs_embeds,
+                        output_attentions=output_attentions,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict,
+                    )
+        except:
+            print("Error with reduced precision during inference!")
+            outputs = self.bert(
+                        input_ids,
+                        attention_mask=attention_mask,
+                        token_type_ids=token_type_ids,
+                        position_ids=position_ids,
+                        head_mask=head_mask,
+                        inputs_embeds=inputs_embeds,
+                        output_attentions=output_attentions,
+                        output_hidden_states=output_hidden_states,
+                        return_dict=return_dict,
+                    )
+            
+        if torch.isnan(outputs[0]).any():
+            print("NaNs in outputs.")
+            raise ValueError()
+        if torch.isnan(outputs[1]).any():
+            print("NaNs in outputs.")
+            raise ValueError()
+
+        expanding_contexts = self.config.expand_positional_embeddings
+        if expanding_contexts:
+            assert self.bert.embeddings.position_embeddings.weight.shape[0] in [512, 2048, 4096, 8192]
+            assert self.bert.embeddings.position_embeddings.weight.shape[1] in [768, 960, 1536, 1792]
+            assert self.bert.embeddings.position_ids.shape[0] == 1
+            assert self.bert.embeddings.position_ids.shape[1] in [512, 2048, 4096, 8192]
+
+            assert self.bert.encoder.layer[0].attention.filter_fn.pos_emb.z.shape[1] in [512, 2048, 4096, 8192]
+            assert self.bert.encoder.layer[11].attention.filter_fn.pos_emb.z.shape[1] in [512, 2048, 4096, 8192]
         
         pooled_output = outputs[1]
 
-        pooled_output = self.dropout(pooled_output)
-        logits = self.classifier(pooled_output)
+        if self.config.gather_sentence_embeddings:
 
-        loss = None
-        if labels is not None:
-            # Compute loss
-            if self.config.problem_type is None:
-                if self.num_labels == 1:
-                    self.config.problem_type = 'regression'
-                elif self.num_labels > 1 and (labels.dtype == torch.long or
-                                              labels.dtype == torch.int):
-                    self.config.problem_type = 'single_label_classification'
+            if self.config.use_cls_token:
+                last_hidden_state_formatted = outputs[0][:,0,:].view(-1, self.config.hidden_size)
+                if self.config.use_normalized_embeddings:
+                    embedding = torch.nn.functional.normalize(last_hidden_state_formatted, p=2, dim=1)
+                    for row in range(embedding.shape[0]):
+                        assert torch.norm(embedding[row, :], p=2) >= 0.99 # Check that Euclidean distance is 1.0
+                        assert torch.norm(embedding[row, :], p=2) <= 1.01 # Weird floating point issue doesn't allow us to do strict equality
+                    assert embedding.shape[1] == 768
+                    return {"sentence_embedding": embedding}
                 else:
-                    self.config.problem_type = 'multi_label_classification'
-
-            if self.config.problem_type == 'regression':
-                loss_fct = nn.MSELoss()
-                if self.num_labels == 1:
-                    loss = loss_fct(logits.squeeze(), labels.squeeze())
+                    return {"sentence_embedding": last_hidden_state_formatted}
+            else:
+                if self.config.use_normalized_embeddings:
+                    embedding = torch.nn.functional.normalize(pooled_output, p=2, dim=1)
+                    try:
+                        for row in range(embedding.shape[0]):
+                            assert torch.norm(embedding[row, :], p=2) >= 0.99 # Check that Euclidean distance is 1.0
+                            assert torch.norm(embedding[row, :], p=2) <= 1.01 # Weird floating point issue doesn't allow us to do strict equality
+                        assert embedding.shape[1] == 768
+                        return {"sentence_embedding": embedding}
+                    except:
+                        raise ValueError('Error with embedding normalization')
                 else:
-                    loss = loss_fct(logits, labels)
-            elif self.config.problem_type == 'single_label_classification':
-                loss_fct = nn.CrossEntropyLoss()
-                loss = loss_fct(logits.view(-1, self.num_labels),
-                                labels.view(-1))
-            elif self.config.problem_type == 'multi_label_classification':
-                loss_fct = nn.BCEWithLogitsLoss()
-                loss = loss_fct(logits, labels)
+                    return {"sentence_embedding": pooled_output}
 
-        if not return_dict:
-            output = (logits,) + outputs[2:]
-            return ((loss,) + output) if loss is not None else output
+        else:
 
-        return SequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=None,
-            attentions=None,
-        )
+            if self.config.use_cls_token:
+                last_hidden_state_formatted = outputs[0][:,0,:].view(-1, self.config.hidden_size)
+                logits = self.classifier(last_hidden_state_formatted)
+            else:
+                pooled_output = self.dropout(pooled_output)
+                logits = self.classifier(pooled_output)
+
+            loss = None
+            if labels is not None:
+                # Compute loss
+                if self.config.problem_type is None:
+                    if self.num_labels == 1:
+                        self.config.problem_type = 'regression'
+                    elif self.num_labels > 1 and (labels.dtype == torch.long or
+                                                labels.dtype == torch.int):
+                        self.config.problem_type = 'single_label_classification'
+                    else:
+                        self.config.problem_type = 'multi_label_classification'
+
+                if self.config.problem_type == 'regression':
+                    loss_fct = nn.MSELoss()
+                    if self.num_labels == 1:
+                        loss = loss_fct(logits.squeeze(), labels.squeeze())
+                    else:
+                        loss = loss_fct(logits, labels)
+                elif self.config.problem_type == 'single_label_classification':
+                    if self.num_labels == 2 and False: #and self.config.name != "mosaic_bert":
+                        loss_fct = nn.BCELoss()
+                        loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+                    else:
+                        loss_fct = nn.CrossEntropyLoss()
+                        loss = loss_fct(logits.view(-1, self.num_labels),
+                                        labels.view(-1))
+                elif self.config.problem_type == 'multi_label_classification':
+                    loss_fct = nn.BCEWithLogitsLoss()
+                    #loss_fct = nn.CrossEntropyLoss()
+                    loss = loss_fct(logits, labels.float())
+
+            if not return_dict:
+                output = (logits,) + outputs[2:]
+                return ((loss,) + output) if loss is not None else output
+
+            return SequenceClassifierOutput(
+                loss=loss,
+                logits=logits,
+                hidden_states=None,
+                attentions=None,
+            )
 
