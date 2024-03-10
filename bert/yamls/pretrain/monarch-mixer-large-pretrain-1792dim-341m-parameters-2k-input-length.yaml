@@ -57,7 +57,7 @@ model:
     monarch_mlp_nblocks: 4
     use_positional_encodings: True
 
-combined_folder_path: /work/sim_data/jonsf/pretraining_datasets_v3
+combined_folder_path: /work/sim_data/jonsf/pretraining_datasets_v4
 # Dataloaders
 train_loader:
   name: text
