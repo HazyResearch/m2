@@ -1,6 +1,7 @@
 
 
 max_seq_len: 2048 #32768
+padding_multiple: 2048
 tokenizer_name: bert-base-uncased
 mlm_probability: 0.30 
 expand_positional_embeddings: True
@@ -92,6 +93,7 @@ train_loader:
     split: # leave blank
     tokenizer_name: ${tokenizer_name}
     max_seq_len: ${max_seq_len}
+    padding_multiple: ${padding_multiple}
     shuffle: true
     mlm_probability: ${mlm_probability}
   drop_last: true
