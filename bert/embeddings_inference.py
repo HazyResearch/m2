@@ -6,6 +6,7 @@ from tqdm import tqdm
 import os
 
 from transformers import AutoTokenizer, AutoModel
+from safetensors.torch import load_model, save_model 
 import pdb
 import torch
 from tabulate import tabulate
@@ -211,16 +212,24 @@ class M2_BERT_Encoder:
             gradient_checkpointing=cfg.get('gradient_checkpointing', None)
         ).eval()
 
-        state_dict = torch.load(checkpoint)
-        new_dict = {}
-        for key in state_dict.keys():
-            new_dict[key.replace("module.", "")] = state_dict[key]
-        state_dict = new_dict
-        
-        model = model.model
-        del model.dropout
-        del model.classifier
-        missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+        #################################
+
+        if "pytorch" in cfg.get("pretrained_checkpoint") or ".pt" in cfg.get("pretrained_checkpoint"):
+            state_dict = torch.load(cfg.get('pretrained_checkpoint'))#['module']
+            new_dict = {}
+            for key in state_dict.keys():
+                new_dict[key.replace("module.", "")] = state_dict[key]
+            state_dict = new_dict
+            
+            model = model.model
+            del model.dropout
+            del model.classifier
+            missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=True)
+        else:
+            missing_keys, unexpected_keys = load_model(model.model, cfg.get('pretrained_checkpoint'), strict=False)
+            model = model.model
+
+        #################################
 
         print("-------------------------------------------------")
         print("Pretrained Checkpoint: " + str(checkpoint))
