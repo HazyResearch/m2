@@ -132,7 +132,7 @@ stackoverflow = ("stackoverflow", "test", "passage", "query", None)
 
 total_datasets = [
     tau_scrolls_summ_screen_fd_config, tau_scrolls_gov_report_config,
-    tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config
+    tau_scrolls_qmsum_config, qasper_title_config, qasper_abstract_config,
     multifieldqa_en_config, wikimqa_config,
     passage_retrieval_en_config, legal_case_reports,
     courtlistener_html, courtlistener_plain_text, stackoverflow
