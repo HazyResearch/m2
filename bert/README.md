@@ -38,7 +38,7 @@ conda activate m2_bert
 To install the dependencies for training:
 ```bash
 git clone https://github.com/HazyResearch/m2.git # if you haven't already
-cd bert/
+cd m2/bert/
 pip install -r requirements.txt
 ```
 

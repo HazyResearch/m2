@@ -1,0 +1,176 @@
+
+# Note that some of the fields in this template haven't been filled in yet.
+# Please resolve any `null` fields before launching!
+
+# Whether to run the various GLUE jobs serially or in parallel (use parallel=True to take advantage of multiple GPUs)
+parallel: false
+
+# Basic run configuration, additional details will be added to this name for each GLUE task, and each random seed
+base_run_name: monarch-mixer-finetune-long-context
+default_seed: 19
+precision: bf16 #AMP_BF16 #fp16 #bf16 #fp32 
+max_seq_len: 2048 #32768 #4096 #1024, 512, 128
+evaluation_max_seq_len: 2048 #32768 #4096 #128
+
+#starting_checkpoint_load_path: local-bert-checkpoints/M2-80M_128/checkpoint.pt # 128
+starting_checkpoint_load_path: local-bert-checkpoints/M2-80M_2k/checkpoint.pt # 2k
+#starting_checkpoint_load_path: local-bert-checkpoints/M2-80M_8k/checkpoint.pt # 8k
+#starting_checkpoint_load_path: local-bert-checkpoints/M2-80M_32k/checkpoint.pt # 32k
+
+#################################################
+
+use_padding_up_to_max_length: True
+hyena_training_additions: False
+sequence_token_planting: False
+use_flash_fft: False #True
+
+attention_probs_dropout_prob: 0.0
+hidden_dropout_prob: 0.0
+#hyena_filter_dropout: 0.0
+
+hyena_lr_pos_emb: 1e-5
+long_conv_kernel_learning_rate: 1e-3
+
+hidden_size: 768 #768, 960, 1536, 1792
+intermediate_size: 3072 # 3072, 3840, 6144, 7168
+
+expand_positional_embeddings: False
+use_cls_token: False #True
+use_normalized_embeddings: False
+gather_sentence_embeddings: True
+performing_BEIR_evaluation: True
+from_pretrained_checkpoint: True
+pool_all_with_masking: False
+attention_pooling: False
+
+##################################################
+
+# Tokenizer for dataset creation
+tokenizer_name: bert-base-uncased
+
+# Optimization
+scheduler_name: linear_decay_with_warmup
+t_warmup: 0.06dur
+alpha_f: 0.02
+scheduler:
+  name: ${scheduler_name}
+  t_warmup: ${t_warmup} #0.06dur #1ep # Warmup to the full LR for 6% of the training duration
+  alpha_f: ${alpha_f} # Linearly decay to 0.02x the full LR by the end of the training duration
+
+learning_rate: 5.0e-6 #2.0e-5
+optimizer:
+  name: decoupled_adamw
+  lr: ${learning_rate}
+  betas:
+  - 0.9
+  - 0.98
+  eps: 1.0e-06
+  weight_decay: 1.0e-6
+
+# Training duration and evaluation frequency
+max_duration: 30ep #30ep
+eval_interval: 1ep
+global_train_batch_size: 16 #16 #16
+
+# Callbacks
+callbacks:
+  lr_monitor: {}
+  speed_monitor: {}
+
+# System
+seed: 17
+device_eval_batch_size: 16
+device_train_microbatch_size: 1 #4 #16
+
+# Logging
+progress_bar: false
+log_to_console: true
+console_log_interval: 50ba
+
+# Dataloaders (make sure to update these after you modify the starter script!)
+train_loader:
+  split: train
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
+  shuffle: true
+  drop_last: true
+  num_workers: 8
+
+split_for_testing: test #test, validation
+eval_loader:
+  split: ${split_for_testing}
+  tokenizer_name: ${tokenizer_name}
+  max_seq_len: ${max_seq_len}
+  shuffle: true
+  drop_last: true
+  num_workers: 8
+
+#################################################
+
+local_pretrain_checkpoint_folder: ./local-bert-checkpoints/
+
+#################################################
+
+# Base model config
+model:
+  #name: bert
+  #name: hf_bert
+  name: mosaic_bert
+  pretrained_model_name: ${tokenizer_name}
+  tokenizer_name: ${tokenizer_name}
+  pretrained_checkpoint: ${starting_checkpoint_load_path}
+  save_num_checkpoints_to_keep: 10
+  max_seq_len: ${max_seq_len}
+  evaluation_max_seq_len: ${evaluation_max_seq_len}
+  use_padding_up_to_max_length: ${use_padding_up_to_max_length}
+  use_normalized_embeddings: ${use_normalized_embeddings}
+  performing_BEIR_evaluation: ${performing_BEIR_evaluation}
+  from_pretrained_checkpoint: ${from_pretrained_checkpoint}
+  expand_positional_embeddings: ${expand_positional_embeddings}
+
+  use_learnable_monarch: False
+  model_config:
+
+    pretrained_checkpoint: ${starting_checkpoint_load_path}
+    use_learnable_monarch: False
+    expand_positional_embeddings: ${expand_positional_embeddings}
+    use_cls_token: ${use_cls_token}
+    use_normalized_embeddings: ${use_normalized_embeddings}
+    gather_sentence_embeddings: ${gather_sentence_embeddings}
+    performing_BEIR_evaluation: ${performing_BEIR_evaluation}
+    sequence_token_planting: ${sequence_token_planting}
+    use_flash_fft: ${use_flash_fft}
+    precision: ${precision}
+
+    num_labels: ${num_labels}
+    num_attention_heads: 12 
+    num_hidden_layers: 12 
+    attention_probs_dropout_prob: ${attention_probs_dropout_prob}
+    max_position_embeddings: ${max_seq_len}
+
+    hidden_dropout_prob: ${hidden_dropout_prob}
+    #hyena_filter_dropout: ${hyena_filter_dropout}
+
+    pool_all: ${pool_all_with_masking}
+    attention_pooling: ${attention_pooling}
+
+    hidden_size: ${hidden_size} #768, 960, 1536, 1792
+    intermediate_size: ${intermediate_size} # 3072, 3840, 6144, 7168
+
+    monarch_mixer_sequence_mixing: True
+    long_conv_l_max: ${max_seq_len} #128, 512
+    long_conv_kernel_learning_rate: ${long_conv_kernel_learning_rate} #1e-3
+    hyena_lr_pos_emb: ${hyena_lr_pos_emb} #1e-5
+    hyena_w: 10
+    hyena_wd: 0.1
+    hyena_emb_dim: 5
+    hyena_filter_order: 128
+    hyena_training_additions: ${hyena_training_additions}
+
+    bidirectional: true
+    residual_long_conv: true #false #true
+
+    use_glu_mlp: True
+    use_monarch_mlp: True #False #True
+    monarch_mlp_nblocks: 4
+    use_positional_encodings: True
