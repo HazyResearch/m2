@@ -40,7 +40,7 @@ class BlockdiagMultiply(torch.autograd.Function):
     The backward pass is also written manually with careful memory copies.
     Arguments:
         x: (..., n)
-        weight: (nblocks, q, n / nblockblk2_out)
+        weight: (nblocks, q, n / blk2_out)
     Outputs:
         out: (..., nblocks * blk1_out)
     """
