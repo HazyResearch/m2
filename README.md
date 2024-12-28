@@ -94,6 +94,13 @@ If you use this codebase, or otherwise found our work valuable, you can cite us 
   booktitle={Advances in Neural Information Processing Systems},
   year={2023}
 }
+
+@inproceedings{saad2024benchmarking,
+  title={Benchmarking and Building Long-Context Retrieval Models with {L}o{C}o and {M}2-{BERT}},
+  author={Saad-Falcon, Jon and Fu, Daniel Y and Arora, Simran and Guha, Neel and R{\'e}, Christopher},
+  journal={International Conference on Machine Learning},
+  year={2024}
+}
 ```
 
 You can also cite our previous work that this repository builds on:
