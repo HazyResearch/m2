@@ -1,0 +1,15 @@
+name: Build Wheels
+
+on:
+  push:
+    # push on github tags that start with "wheel"
+    tags:
+      - "wheel*"
+
+jobs:
+  flashmm_wheels:
+    uses:
+      ./.github/workflows/workflow_build_cuda_wheels.yaml
+    with: # ${{ github.workspace }}
+      setuppypath: "csrc/flashmm"
+    secrets: inherit
